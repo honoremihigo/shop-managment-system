@@ -4,6 +4,8 @@ const cors = require("cors")
 const cookieParser = require("cookie-parser")
 require('dotenv').config()
 const { testConnection, syncDatabase } = require("./config/database")
+const authRoutes = require("./modules/auth/auth.routes")
+const productRoutes = require("./modules/product/product.routes")
 
 //port
 const PORT = process.env.PORT || 5000
@@ -22,6 +24,11 @@ app.use(express.urlencoded({ extended: true }))
 app.get("/", (req, res) => {
     res.send("Hello World!")
 })
+
+
+//routes
+app.use("/api/auth", authRoutes)
+app.use("/api/products", productRoutes)
 
 const startServer = async () => {
     try {

@@ -1,6 +1,6 @@
-const { AdminRegister, login } = require("./auth.service");
+const { AdminRegister, login, userProfile } = require("./auth.service");
 
-export const registerAdmin = async (req, res) => {
+const registerAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
     const result = await AdminRegister(email, password);
@@ -12,7 +12,8 @@ export const registerAdmin = async (req, res) => {
 };
 
 
-export const loginUser = async (req, res) => {
+const loginUser = async (req, res) => {
+    console.log("Request body:", req.body);
     try {
         const { email, password } = req.body;
         const token = await login(email, password);
@@ -32,15 +33,34 @@ export const loginUser = async (req, res) => {
     }
 }
 
-
-export const logout = async (req, res) => {
+const logout = async (req, res) => {
     res.cookie('token', '', {
         httpOnly: true,
         expires: new Date(0),  // Expire immediately
     });
-    
     res.status(200).json({
         success: true,
         message: 'Logged out successfully'
     });
 };
+
+
+const getProfile = async (req, res) =>{
+    const { id } = req.user
+    try {
+        const user = await userProfile(id)
+        res.status(200).json({
+            success: true,
+            data: user
+        })
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+        console.error("Error in getProfile:", error);
+    }
+}
+module.exports = {
+    registerAdmin,
+    loginUser,
+    getProfile,
+    logout
+}

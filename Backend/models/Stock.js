@@ -30,3 +30,4 @@ const Stock = sequelize.define(
 );
 
 module.exports = Stock;
+  
