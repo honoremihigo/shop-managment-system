@@ -54,8 +54,24 @@ const createBulkProducts = async (productData) => {
   }
 };
 
-const getAllProducts = async () => {
-  return await Product.findAll();
+const getAllProducts = async (page, limit) => {
+  const offset = (page - 1) * limit
+  const { count, rows } = await Product.findAndCountAll({
+    order: [['name', 'ASC']],
+    offset:offset,
+    limit: limit,
+  })
+
+  const totalPages = Math.ceil(count / limit)
+  return{
+    products: rows,
+    totalProducts: count,
+    currentPage:page,
+    productsPerPage: limit,
+    totalPages: totalPages,
+    prevPage: page > 1,
+    nextPage: page < totalPages
+  }
 };
 
 const getProductById = async (id) => {

@@ -13,8 +13,12 @@ const Stock = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
+    costPrice: {
+      type: DataTypes.DECIMAL(10,1),
+      allowNull: false
+    },
     sellingPrice: {
-      type: DataTypes.DECIMAL(10, 2),
+      type: DataTypes.DECIMAL(10, 1),
       allowNull: false,
     },
     reorder_threshold: {
@@ -23,6 +27,10 @@ const Stock = sequelize.define(
       defaultValue: 5,
       comment: "Minimum stock level before reordering",
     },
+    productId: {
+      type: DataTypes.UUID,
+      allowNull: false
+    }
   },
   {
     tableName: "stocks",

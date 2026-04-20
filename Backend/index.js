@@ -6,6 +6,8 @@ require('dotenv').config()
 const { testConnection, syncDatabase } = require("./config/database")
 const authRoutes = require("./modules/auth/auth.routes")
 const productRoutes = require("./modules/product/product.routes")
+const adminRoutes = require("./modules/admin/admin.routes")
+const stockRoutes = require("./modules/stock/stock.routes")
 
 //port
 const PORT = process.env.PORT || 5000
@@ -29,6 +31,8 @@ app.get("/", (req, res) => {
 //routes
 app.use("/api/auth", authRoutes)
 app.use("/api/products", productRoutes)
+app.use("/api/admin", adminRoutes)
+app.use("/api/stocks",stockRoutes)
 
 const startServer = async () => {
     try {

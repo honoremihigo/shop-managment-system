@@ -17,11 +17,19 @@ const createProducts = async (req, res) => {
 
 
 const getProducts = async (req, res) => {
+    const page = parseInt(req.query.page) || 1
+    const limit = 10
     try {
-        const products = await getAllProducts();
+        const products = await getAllProducts(page , limit);
         res.status(200).json({
             message: "Products retrieved successfully",
-            data: products
+            data: products.products,
+            totalProducts: products.totalProducts,
+            totalPages: products.totalPages,
+            productsPerPage: products.productsPerPage,
+            currentPage: products.currentPage,
+            prevPage: products.prevPage,
+            nextPage: products.nextPage
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
