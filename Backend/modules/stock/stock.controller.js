@@ -13,7 +13,7 @@ const createStocks = async (req, res) => {
         
         res.status(201).json({
             success: true,
-            message: `Successfully created ${result.count} stock records`,
+            message: `Successfully created ${result.count.length} stock records`,
             data: result
         });
     } catch (error) {

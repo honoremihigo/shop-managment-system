@@ -43,7 +43,7 @@ const addingBulkStocks = async (stockData, userId) => {
              errors.push(`stock${i} selling price should not be empty`)
         }
 
-        if(!stock.costPrice < 0 && !stock.sellingPrice < 0 ){
+        if(stock.costPrice < 0 && stock.sellingPrice < 0 ){
             errors.push(`stock${i} selling price or cost price  should not be negative`)
         }
         productIds.push(stock.product_id)
@@ -92,8 +92,8 @@ const addingBulkStocks = async (stockData, userId) => {
 
         await transaction.commit()
         return{
-            count: createdStocks.length,
-            failed: missingIds.length
+            count: createdStocks,
+            failed: missingIds
         }
     } catch (error) {
         console.error("error creating stocks:", error)

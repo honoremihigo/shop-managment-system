@@ -60,6 +60,11 @@ const getAllProducts = async (page, limit) => {
     order: [['name', 'ASC']],
     offset:offset,
     limit: limit,
+    include: [{
+        model: Stock,
+        as: 'stock',
+        attributes: ['id', 'quantity', 'sellingPrice', 'costPrice', 'createdAt']
+    }]
   })
 
   const totalPages = Math.ceil(count / limit)
@@ -75,7 +80,25 @@ const getAllProducts = async (page, limit) => {
 };
 
 const getProductById = async (id) => {
+
+
+  // First, just get the product to see if it exists
   const product = await Product.findByPk(id);
+  console.log("Product found:", product ? product.id : "No product");
+  
+  // Then check if stock exists for this product
+  const stock = await Stock.findOne({ where: { productId: id } });
+  console.log("Stock found:", stock ? "Yes" : "No");
+  if (stock) {
+    console.log("Stock quantity:", stock.quantity);
+  }
+  const productWithStock = await Product.findByPk(id, {
+   include: [{
+    model: Stock,
+    as: 'stock',
+    attributes: ['id', 'quantity', 'sellingPrice', 'costPrice', 'createdAt']
+   }]
+  });
   if (!product) {
     console.error(`Product with id ${id} not found`);
     throw new Error("Product not found");
