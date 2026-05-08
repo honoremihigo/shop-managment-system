@@ -1,4 +1,4 @@
-const {  createUser,  } = require('./admin.service')
+const {  createUser:createUserService, getAllUsers: getAllUsersService } = require('./admin.service')
 /**
  * Create a new user (Admin only)
  * POST /api/users
@@ -7,7 +7,7 @@ const createNewUser = async (req, res) => {
     try {
         const { email, password } = req.body;
         
-        const user = await this.createUser(email, password);
+        const user = await createUserService(email, password);
         
         res.status(201).json({
             success: true,
@@ -46,7 +46,7 @@ const createNewUser = async (req, res) => {
  */
 const getAllUsers = async (req, res) => {
     try {
-        const users = await getAllUsers();
+        const users = await getAllUsersService();
         
         // Remove passwords from response
         const safeUsers = users.map(user => ({
