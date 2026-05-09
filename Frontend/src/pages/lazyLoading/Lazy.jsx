@@ -3,6 +3,9 @@ import { lazy } from "react";
 export const Login = lazy(() => import("../auth/Login"))
 export const  Dashboard = lazy(() => import("../dashboard/Dashboard"))
 export const NotFound = lazy(() => import("../NotFound/NotFound"))
+export const ProductManagment = lazy(() => import("../dashboard/ProductManagment"))
+export const StockManagment = lazy(() => import("../dashboard/StockManagment"))
+export const SalesManagment = lazy(() => import("../dashboard/SalesManagement"))
 
 //admin
 export const UserManagement = lazy(() => import("../dashboard/UserManagment"))

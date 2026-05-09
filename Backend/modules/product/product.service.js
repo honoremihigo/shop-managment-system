@@ -1,5 +1,6 @@
 const { sequelize } = require("../../config/database");
 const Product = require("../../models/Product");
+const Stock = require('../../models/Stock')
 
 // Create new bulk products or creating many products at once
 const createBulkProducts = async (productData) => {
