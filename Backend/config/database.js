@@ -35,6 +35,11 @@ const sequelize = new Sequelize({
     decimalNumbers: true,
     dateStrings: true,
     typeCast: true,
+    ...(process.env.NODE_ENV === "production" && {
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    }),
   },
 });
 
@@ -52,10 +57,11 @@ const testConnection = async () => {
 
 // Sync database
 const syncDatabase = async (force = false) => {
+  const isProduction = process.env.NODE_ENV === "production";
   try {
     await sequelize.sync({
-      force: force,
-      alter: !force,
+      force: isProduction ? false : force,
+      alter: isProduction ? false : !force,
     });
     console.log("✅ All models were synchronized successfully.");
     return true;
