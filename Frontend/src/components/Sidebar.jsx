@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 // Regular navigation – available to all authenticated users
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/today-sale',  icon: BarChart3, label: 'Today Sale' },
   { to: '/sales',     icon: ShoppingCart, label: 'Sales' },
   { to: '/products',   icon: Package, label: 'Products' },
   { to: '/stocks',  icon: BarChart3, label: 'Stock' },

@@ -1,22 +1,31 @@
-// src/pages/SaleManagement/SaleManagement.jsx
+// src/pages/TodaySales/TodaySales.jsx
 import { useEffect, useState, useMemo, useRef } from "react";
 import {
   ShoppingCart,
-  Plus,
+  DollarSign,
   Search,
   X,
-  ChevronLeft,
-  ChevronRight,
-  AlertTriangle,
-  DollarSign,
+  Plus,
+  ChevronDown,
   Package,
+  AlertTriangle,
 } from "lucide-react";
 import {
-  fetchSales,
+  fetchTodaySales,
   fetchAllStocks,
   createBulkSales,
 } from "../../services/main/saleService";
-import { useAuth } from "../../context/AuthContext";
+
+/* ─── Helpers ─── */
+const fmt = (n) =>
+  new Intl.NumberFormat("fr-RW", {
+    style: "currency",
+    currency: "RWF",
+    minimumFractionDigits: 0,
+  }).format(n);
+
+const inputCls =
+  "w-full px-3.5 py-2.5 bg-background border border-outline-variant rounded-xl text-[13px] text-on-surface outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all";
 
 /* ─── Stat Card ─── */
 const StatCard = ({
@@ -46,10 +55,8 @@ const StatCard = ({
   </div>
 );
 
-/* ─── Status Badge for Sale (optional) – no stock badge needed here, but we can reuse) ─── */
-
-/* ─── Bottom Sheet / Modal wrapper ─── */
-const Sheet = ({ open, onClose, children, maxWidth = "max-w-[620px]" }) => {
+/* ─── Bottom Sheet Modal ─── */
+const Sheet = ({ open, onClose, children, maxWidth = "max-w-[520px]" }) => {
   if (!open) return null;
   return (
     <div
@@ -57,12 +64,7 @@ const Sheet = ({ open, onClose, children, maxWidth = "max-w-[620px]" }) => {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className={`
-          w-full ${maxWidth} bg-surface border border-outline-variant shadow-2xl
-          rounded-t-3xl sm:rounded-2xl
-          animate-in fade-in slide-in-from-bottom-4 duration-200
-          max-h-[92vh] overflow-y-auto
-        `}
+        className={`w-full ${maxWidth} bg-surface border border-outline-variant shadow-2xl rounded-t-3xl sm:rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-200 max-h-[92vh] overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-center pt-3 pb-0 sm:hidden">
@@ -73,16 +75,6 @@ const Sheet = ({ open, onClose, children, maxWidth = "max-w-[620px]" }) => {
     </div>
   );
 };
-
-/* ─── Field wrapper ─── */
-const Field = ({ label, children }) => (
-  <div className="space-y-1.5">
-    <label className="block text-[10px] font-semibold text-secondary uppercase tracking-widest">
-      {label}
-    </label>
-    {children}
-  </div>
-);
 
 /* ─── Searchable Stock Select ─── */
 const SearchableStockSelect = ({
@@ -169,74 +161,44 @@ const SearchableStockSelect = ({
   );
 };
 
-const inputCls =
-  "w-full px-3.5 py-2.5 bg-background border border-outline-variant rounded-xl text-[13px] text-on-surface outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all";
-
-const fmt = (n) =>
-  new Intl.NumberFormat("fr-RW", {
-    style: "currency",
-    currency: "RWF",
-    minimumFractionDigits: 0,
-  }).format(n);
-
-const ChevronDown = ({ size = 14, className }) => (
-  <svg
-    className={className}
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-
-const SaleManagement = () => {
-  const { user } = useAuth();
-
+/* ─── Page Component ─── */
+const TodaySales = () => {
   const [sales, setSales] = useState([]);
+  const [summary, setSummary] = useState({ totalRevenue: 0, totalSales: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-
   const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
 
-  // Stock list for add form
-  const [allStocks, setAllStocks] = useState([]);
-  const [stocksLoading, setStocksLoading] = useState(false);
-
-  // Add modal – bulk
+  /* Add modal state */
   const [addOpen, setAddOpen] = useState(false);
   const [newSales, setNewSales] = useState([
     { stockId: "", quantity: "", soldPrice: "", availableQty: 0 },
   ]);
   const [addError, setAddError] = useState("");
   const [addLoading, setAddLoading] = useState(false);
+  const [allStocks, setAllStocks] = useState([]);
+  const [stocksLoading, setStocksLoading] = useState(false);
 
-  // Detail view (optional, just show a small info card on row click? We'll skip for brevity)
-
-  const loadSales = async (page = 1) => {
+  // Load today's sales
+  const loadTodaySales = async () => {
     setLoading(true);
     try {
-      const res = await fetchSales(page);
-      setSales(res.data);
-      setTotalItems(res.totalItems);
-      setTotalPages(res.totalPages);
-      setCurrentPage(res.currentPage);
+      const res = await fetchTodaySales();
+      if (res.success) {
+        setSales(res.data);
+        setSummary(res.summary);
+      } else {
+        setError("Failed to load today’s sales");
+      }
     } catch {
-      setError("Failed to load sales");
+      setError("Failed to load today’s sales");
     } finally {
       setLoading(false);
     }
   };
 
+  // Load all stocks for the add form
   const loadStocks = async () => {
     setStocksLoading(true);
     try {
@@ -250,21 +212,11 @@ const SaleManagement = () => {
   };
 
   useEffect(() => {
-    loadSales(currentPage);
-  }, [currentPage]);
-
-  useEffect(() => {
+    loadTodaySales();
     loadStocks();
   }, []);
 
-  // Stats
-  const todayTotal = useMemo(
-    () => sales.reduce((sum, s) => sum + parseFloat(s.totalPrice || 0), 0),
-    [sales],
-  );
-  const todaySalesCount = useMemo(() => sales.length, [sales]);
-
-  // Filtered list
+  // Filter by search
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return sales;
@@ -311,7 +263,7 @@ const SaleManagement = () => {
   };
 
   const handleAdd = async () => {
-    // Validate
+    // Validation
     const invalid = newSales.some(
       (s) => !s.stockId || !s.quantity || !s.soldPrice,
     );
@@ -320,11 +272,10 @@ const SaleManagement = () => {
       return;
     }
 
-    // Check quantity against available stock
     for (const sale of newSales) {
       if (parseInt(sale.quantity) > sale.availableQty) {
         setAddError(
-          `Quantity exceeds available stock for one or more entries.`,
+          "Quantity exceeds available stock for one or more entries.",
         );
         return;
       }
@@ -355,7 +306,7 @@ const SaleManagement = () => {
       const res = await createBulkSales(payload);
       setSuccessMsg(`${res.count} sale(s) recorded`);
       setAddOpen(false);
-      loadSales(currentPage);
+      loadTodaySales(); // refresh list & stats
     } catch (err) {
       setAddError(err.response?.data?.message || "Error recording sale");
     } finally {
@@ -363,17 +314,20 @@ const SaleManagement = () => {
     }
   };
 
-  const goToPage = (p) => {
-    if (p >= 1 && p <= totalPages) setCurrentPage(p);
-  };
+  const getDisabledIds = (currentIndex) =>
+    newSales
+      .filter((_, i) => i !== currentIndex)
+      .map((s) => s.stockId)
+      .filter(Boolean);
 
+  // Auto‑dismiss success message
   useEffect(() => {
     if (!successMsg) return;
-    const t = setTimeout(() => setSuccessMsg(""), 3000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setSuccessMsg(""), 3000);
+    return () => clearTimeout(timer);
   }, [successMsg]);
 
-  if (loading && sales.length === 0 && stocksLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="w-7 h-7 border-[3px] border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -381,23 +335,21 @@ const SaleManagement = () => {
     );
   }
 
-  // helper for duplicate disabled IDs in the add form
-  const getDisabledIds = (currentIndex) =>
-    newSales
-      .filter((_, i) => i !== currentIndex)
-      .map((s) => s.stockId)
-      .filter(Boolean);
-
   return (
     <div className="relative space-y-4 font-sans antialiased pb-24 sm:pb-6">
-      {/* ─── Header ─── */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-[17px] font-bold text-on-surface tracking-tight">
-            Sales
+            Today’s Sales
           </h1>
           <p className="text-[11px] text-secondary mt-0.5">
-            {totalItems} transactions
+            {new Date().toLocaleDateString("en-GB", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
           </p>
         </div>
         <button
@@ -405,11 +357,11 @@ const SaleManagement = () => {
           className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 bg-primary text-on-primary text-[12px] font-semibold rounded-xl hover:brightness-110 transition-all shadow-sm"
         >
           <Plus size={13} />
-          New sale
+          Add Sale
         </button>
       </div>
 
-      {/* ─── Toast banners ─── */}
+      {/* Toast banners */}
       {error && (
         <div className="flex items-center justify-between px-3.5 py-2.5 bg-error-container text-on-error-container text-[11.5px] rounded-xl">
           <span className="flex items-center gap-2">
@@ -430,26 +382,26 @@ const SaleManagement = () => {
         </div>
       )}
 
-      {/* ─── Stats ─── */}
+      {/* Stats */}
       <div className="grid grid-cols-2 gap-2">
         <StatCard
           icon={ShoppingCart}
-          label="Total Sales (this page)"
-          value={todaySalesCount}
+          label="Total Sales"
+          value={summary.totalSales}
           accent="bg-primary/10"
           iconColor="text-primary"
         />
         <StatCard
           icon={DollarSign}
-          label="Revenue (this page)"
-          value={fmt(todayTotal)}
+          label="Revenue"
+          value={fmt(summary.totalRevenue)}
           accent="bg-success-container/60"
           iconColor="text-success"
           valueColor="text-success"
         />
       </div>
 
-      {/* ─── Search ─── */}
+      {/* Search */}
       <div className="relative">
         <Search
           size={13}
@@ -473,12 +425,12 @@ const SaleManagement = () => {
         )}
       </div>
 
-      {/* ─── Sales list ─── */}
+      {/* Today's List */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-14 gap-3 text-secondary bg-surface border border-outline-variant rounded-2xl">
           <ShoppingCart size={32} strokeWidth={1.2} className="opacity-25" />
           <p className="text-[12.5px]">
-            {search ? `No results for "${search}"` : "No sales recorded yet"}
+            {search ? `No results for "${search}"` : "No sales recorded today"}
           </p>
           <button
             onClick={openAdd}
@@ -489,13 +441,16 @@ const SaleManagement = () => {
         </div>
       ) : (
         <>
-          {/* Mobile: card list */}
+          {/* Mobile cards */}
           <div className="sm:hidden space-y-1.5">
             {filtered.map((sale) => (
               <div
                 key={sale.id}
                 className="bg-surface border border-outline-variant rounded-xl px-3.5 py-3 flex items-center gap-3"
               >
+                <div className="w-8 h-8 rounded-lg bg-primary-container/30 flex items-center justify-center flex-shrink-0">
+                  <Package size={14} className="text-primary" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-[12.5px] text-on-surface truncate">
                     {sale.stock?.product?.name || "Unknown"}
@@ -505,7 +460,10 @@ const SaleManagement = () => {
                     {fmt(sale.totalPrice)}
                   </p>
                   <p className="text-[10.5px] text-secondary">
-                    {new Date(sale.createdAt).toLocaleDateString("en-GB")}
+                    {new Date(sale.createdAt).toLocaleTimeString("en-GB", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </p>
                 </div>
                 <div className="text-right text-on-surface text-[12px] font-medium">
@@ -515,11 +473,11 @@ const SaleManagement = () => {
             ))}
           </div>
 
-          {/* Desktop: table */}
+          {/* Desktop table */}
           <div className="hidden sm:block bg-surface border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
             <div className="px-4 py-3 border-b border-outline-variant">
               <span className="text-[10px] font-semibold text-secondary uppercase tracking-widest">
-                All Sales
+                Today’s Transactions
               </span>
             </div>
             <div className="overflow-x-auto">
@@ -531,7 +489,7 @@ const SaleManagement = () => {
                       "Qty",
                       "Unit Price",
                       "Total",
-                      "Date",
+                      "Time",
                       "Seller",
                     ].map((h) => (
                       <th
@@ -566,7 +524,10 @@ const SaleManagement = () => {
                         {fmt(sale.totalPrice)}
                       </td>
                       <td className="py-3 px-4 text-secondary text-[11.5px]">
-                        {new Date(sale.createdAt).toLocaleDateString("en-GB")}
+                        {new Date(sale.createdAt).toLocaleTimeString("en-GB", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </td>
                       <td className="py-3 px-4 text-secondary text-[11.5px]">
                         {sale.user?.email || "—"}
@@ -576,39 +537,11 @@ const SaleManagement = () => {
                 </tbody>
               </table>
             </div>
-            <div className="px-4 py-2 border-t border-outline-variant/50 text-[10.5px] text-secondary">
-              Showing {filtered.length} of {totalItems} transactions
-            </div>
           </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <span className="text-[11.5px] text-secondary">
-                Page {currentPage} of {totalPages}
-              </span>
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => goToPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-secondary disabled:opacity-40 hover:bg-secondary-container/30 transition-colors"
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                <button
-                  onClick={() => goToPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-secondary disabled:opacity-40 hover:bg-secondary-container/30 transition-colors"
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
         </>
       )}
 
-      {/* ─── Mobile FAB ─── */}
+      {/* Mobile FAB */}
       <button
         onClick={openAdd}
         className="sm:hidden fixed bottom-6 right-5 z-40 w-12 h-12 rounded-full bg-primary text-on-primary shadow-lg shadow-primary/30 flex items-center justify-center hover:brightness-110 active:scale-95 transition-all"
@@ -768,4 +701,4 @@ const SaleManagement = () => {
   );
 };
 
-export default SaleManagement;
+export default TodaySales;

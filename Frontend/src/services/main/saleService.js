@@ -30,4 +30,10 @@ const createBulkSales = async (salesArray) => {
   return response.data;
 };
 
-export { fetchSales, fetchAllStocks, createBulkSales };
+
+const fetchTodaySales = async () => {
+  const response = await api.get('/sales/today');
+  return response.data;
+};
+
+export { fetchSales, fetchAllStocks, createBulkSales , fetchTodaySales };

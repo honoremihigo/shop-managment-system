@@ -307,6 +307,11 @@ const getTodaySales = async () => {
           },
         ],
       },
+      {
+        model: User,                   // ← ADD THIS
+        as: "user",
+        attributes: ["id", "email", "role"],  // only what you need
+      },
     ],
   });
 

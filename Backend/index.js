@@ -33,6 +33,9 @@ app.get("/", (req, res) => {
     res.send("backend is running")
 })
 
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 //routes
 app.use("/api/auth", authRoutes)
@@ -50,6 +53,16 @@ const startServer = async () => {
         const dbConnected = await testConnection();
         if (dbConnected) {
             await syncDatabase();
+            // DB ping to keep Aiven active
+            setInterval(async () => {
+              try {
+                await sequelize.query('SELECT 1');
+                console.log('DB pinged');
+              } catch (err) {
+                console.error('DB ping failed:', err);
+              }
+            }, 8 * 60 * 1000);
+            
             app.listen(PORT, () => {
                 console.log(`Server is running on port ${PORT}`);
             });

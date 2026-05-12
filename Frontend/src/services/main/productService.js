@@ -31,4 +31,20 @@ const deleteProduct = async (id) => {
   return response.data;
 };
 
+// Fetch ALL products (ignoring pagination)
+export const fetchAllProducts = async () => {
+  let all = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const res = await fetchProducts(page);
+    all = all.concat(res.data);
+    totalPages = res.totalPages;
+    page++;
+  } while (page <= totalPages);
+
+  return all;
+};
+
 export { fetchProducts, fetchProductById, createProducts, updateProduct, deleteProduct };

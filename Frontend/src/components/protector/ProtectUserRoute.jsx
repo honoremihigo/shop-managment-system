@@ -1,32 +1,17 @@
-// components/ProtectedRoute.jsx
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import Loading from '../Loading/Loading';
-import { useEffect } from 'react';
+import Loader from '../Loading/Loading';   // your actual loading spinner
 
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
+  const { user, loading: isLoading } = useAuth();   // alias to avoid naming clash
 
-  // If user already logged in, redirect immediately
-  useEffect(() => {
-    if (!loading && user) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [user, loading, navigate]);
+  // 1. Still checking auth → show spinner
+  if (isLoading) return <Loader />;
 
+  // 2. Not logged in → send to login
+  if (!user) return <Navigate to="/login" replace />;
 
-  // While the initial auth check is running, show a loader
-  if (loading) {
-    return Loading
-  }
-
-  // If no user is logged in, redirect to the login page
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  // User is authenticated – render the requested page
+  // 3. Logged in → render the child page
   return children;
 };
 

@@ -1,5 +1,5 @@
 import { createBrowserRouter} from "react-router-dom";
-import { Login, Dashboard , NotFound, UserManagement, ProductManagment, StockManagment, SalesManagment } from "../pages/lazyLoading/Lazy";
+import { Login, Dashboard , NotFound, UserManagement, ProductManagment, StockManagment, SalesManagment, TodaySales, PurchaseManagment } from "../pages/lazyLoading/Lazy";
 import SuspenceWrapper from "../components/suspenseWrapper/SuspenseWrapper";
 import ProtectedRoute from "../components/protector/ProtectUserRoute";
 import MainLayout from "../layout/MainLayout";
@@ -53,6 +53,22 @@ const routes = createBrowserRouter([
         element: (
           <SuspenceWrapper>
             <SalesManagment/>
+          </SuspenceWrapper>
+        ),
+      },
+      {
+        path: "/today-sale",
+        element: (
+          <SuspenceWrapper>
+            <TodaySales />
+          </SuspenceWrapper>
+        ),
+      },
+      {
+        path: "/purchases",
+        element: (
+          <SuspenceWrapper>
+            <PurchaseManagment />
           </SuspenceWrapper>
         ),
       },

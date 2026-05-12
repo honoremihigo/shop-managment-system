@@ -1,7 +1,21 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Trash2, Shield, User, X, Eye, EyeOff, Search, Users, UserCheck, AlertTriangle } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  X,
+  Trash2,
+  Shield,
+  Users,
+  UserCheck,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  User,
+} from 'lucide-react';
 import { fetchAllUsers, createUser, deleteUser } from '../../services/admin/userService';
+import { useAuth } from '../../context/AuthContext';
 
+/* ─── Helpers ─── */
 const getInitials = (email) => {
   const parts = email.split('@')[0].split(/[._-]/);
   return parts.length >= 2
@@ -17,34 +31,83 @@ const AVATAR_COLORS = [
 
 const getAvatarColor = (email) => AVATAR_COLORS[email.charCodeAt(0) % AVATAR_COLORS.length];
 
-const StatCard = ({ icon: Icon, label, value, accent }) => (
-  <div className="flex items-center gap-3 bg-surface border border-outline-variant rounded-xl px-4 py-3.5 shadow-sm">
-    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>
-      <Icon size={16} />
+/* ─── Stat Card ─── */
+const StatCard = ({ icon: Icon, label, value, accent, iconColor, valueColor }) => (
+  <div className="flex items-center gap-2.5 bg-surface border border-outline-variant rounded-xl px-3 py-2.5 shadow-sm">
+    <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>
+      <Icon size={13} className={iconColor} />
     </div>
-    <div>
-      <p className="text-[11px] text-secondary font-medium">{label}</p>
-      <p className="text-[18px] font-bold text-on-surface leading-tight">{value}</p>
+    <div className="min-w-0">
+      <p className="text-[9.5px] text-secondary font-semibold uppercase tracking-wide leading-none mb-0.5 truncate">
+        {label}
+      </p>
+      <p className={`text-[17px] font-bold leading-tight ${valueColor || 'text-on-surface'}`}>
+        {value}
+      </p>
     </div>
   </div>
 );
 
+/* ─── Bottom Sheet / Modal wrapper ─── */
+const Sheet = ({ open, onClose, children, maxWidth = 'max-w-[520px]' }) => {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center bg-black/40 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className={`
+          w-full ${maxWidth} bg-surface border border-outline-variant shadow-2xl
+          rounded-t-3xl sm:rounded-2xl
+          animate-in fade-in slide-in-from-bottom-4 duration-200
+          max-h-[92vh] overflow-y-auto
+        `}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-center pt-3 pb-0 sm:hidden">
+          <div className="w-10 h-1 rounded-full bg-outline-variant" />
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+/* ─── Field wrapper ─── */
+const Field = ({ label, children }) => (
+  <div className="space-y-1.5">
+    <label className="block text-[10px] font-semibold text-secondary uppercase tracking-widest">
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
+const inputCls =
+  'w-full px-3.5 py-2.5 bg-background border border-outline-variant rounded-xl text-[13px] text-on-surface outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all';
+
 const UserManagement = () => {
+  const { user: currentUser } = useAuth();
+
   const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [search, setSearch] = useState('');
+
+  /* Create modal */
+  const [createOpen, setCreateOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createLoading, setCreateLoading] = useState(false);
 
-  // --- NEW: delete confirmation state ---
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null); // { id, email }
+  /* Delete modal */
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const loadUsers = async () => {
     try {
@@ -57,350 +120,429 @@ const UserManagement = () => {
     }
   };
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
-  const openModal = () => setModalOpen(true);
+  /* ── Stats ── */
+  const totalUsers = users.length;
+  const adminCount = users.filter((u) => u.role === 'ADMIN').length;
+  const regularCount = users.filter((u) => u.role === 'USER').length;
 
-  const closeModal = () => {
-    setModalOpen(false);
+  /* ── Search filter ── */
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) => u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q)
+    );
+  }, [users, search]);
+
+  /* ── Create handlers ── */
+  const openCreate = () => {
     setEmail('');
     setPassword('');
     setShowPassword(false);
-    setError('');
-    setSuccessMsg('');
-  };
-
-  // --- NEW: open/close delete modal ---
-  const openDeleteModal = (user) => {
-    setUserToDelete(user);
-    setDeleteModalOpen(true);
-  };
-
-  const closeDeleteModal = () => {
-    setDeleteModalOpen(false);
-    setUserToDelete(null);
+    setCreateError('');
+    setCreateOpen(true);
   };
 
   const handleCreate = async () => {
-    if (!email || !password) { setError('Email and password are required'); return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
-    setSubmitting(true);
-    setError('');
-    setSuccessMsg('');
+    if (!email || !password) {
+      setCreateError('Email and password are required');
+      return;
+    }
+    if (password.length < 6) {
+      setCreateError('Password must be at least 6 characters');
+      return;
+    }
+    setCreateLoading(true);
+    setCreateError('');
     try {
       const res = await createUser(email, password);
       if (res.success) {
         setSuccessMsg('User created successfully');
+        setCreateOpen(false);
         loadUsers();
-        setTimeout(closeModal, 900);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Error creating user');
+      setCreateError(err.response?.data?.message || 'Error creating user');
     } finally {
-      setSubmitting(false);
+      setCreateLoading(false);
     }
   };
 
-  // --- UPDATED: no more window.confirm ---
+  /* ── Delete handlers ── */
+  const openDelete = (usr) => {
+    setUserToDelete(usr);
+    setDeleteOpen(true);
+  };
+
   const handleDelete = async () => {
-    if (!userToDelete) return;
-    setDeleting(true);
+    setDeleteLoading(true);
     try {
       await deleteUser(userToDelete.id);
-      setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
-      closeDeleteModal();
+      setSuccessMsg('User deleted');
+      setDeleteOpen(false);
+      loadUsers();
     } catch {
       setError('Failed to delete user');
-      closeDeleteModal();
+      setDeleteOpen(false);
     } finally {
-      setDeleting(false);
+      setDeleteLoading(false);
     }
   };
 
-  const totalUsers = users.length;
-  const adminCount = users.filter(u => u.role === 'ADMIN').length;
-  const regularCount = users.filter(u => u.role === 'USER').length;
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(u =>
-      u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q)
-    );
-  }, [users, search]);
+  /* Auto‑dismiss success message */
+  useEffect(() => {
+    if (!successMsg) return;
+    const t = setTimeout(() => setSuccessMsg(''), 3000);
+    return () => clearTimeout(t);
+  }, [successMsg]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-[3px] border-primary/20 border-t-primary rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-7 h-7 border-[3px] border-primary/20 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 font-sans antialiased">
-
-      {/* Header */}
-      <div className="flex items-start justify-between">
+    <div className="relative space-y-4 font-sans antialiased pb-24 sm:pb-6">
+      {/* ─── Header ─── */}
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-on-surface tracking-tight">User Management</h1>
-          <p className="text-xs text-secondary mt-0.5">Manage employee and admin accounts</p>
+          <h1 className="text-[17px] font-bold text-on-surface tracking-tight">User Management</h1>
+          <p className="text-[11px] text-secondary mt-0.5">{totalUsers} total</p>
         </div>
         <button
-          onClick={openModal}
-          className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:brightness-110 transition-all"
+          onClick={openCreate}
+          className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 bg-primary text-on-primary text-[12px] font-semibold rounded-xl hover:brightness-110 transition-all shadow-sm"
         >
-          <Plus size={14} />
+          <Plus size={13} />
           Add user
         </button>
       </div>
 
-      {/* Error banner */}
-      {error && !modalOpen && (
-        <div className="px-4 py-2.5 bg-error-container text-on-error-container text-xs rounded-lg flex items-center justify-between">
-          {error}
-          <button onClick={() => setError('')} className="opacity-60 hover:opacity-100"><X size={13} /></button>
+      {/* ─── Toast banners ─── */}
+      {error && (
+        <div className="flex items-center justify-between px-3.5 py-2.5 bg-error-container text-on-error-container text-[11.5px] rounded-xl">
+          <span className="flex items-center gap-2"><AlertTriangle size={12} />{error}</span>
+          <button onClick={() => setError('')}><X size={12} /></button>
+        </div>
+      )}
+      {successMsg && (
+        <div className="flex items-center justify-between px-3.5 py-2.5 bg-primary-container text-on-primary-container text-[11.5px] rounded-xl">
+          <span>{successMsg}</span>
+          <button onClick={() => setSuccessMsg('')}><X size={12} /></button>
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard icon={Users} label="Total Users" value={totalUsers} accent="bg-primary/10 text-primary" />
-        <StatCard icon={Shield} label="Admins" value={adminCount} accent="bg-primary-container text-on-primary-container" />
-        <StatCard icon={UserCheck} label="Regular Users" value={regularCount} accent="bg-secondary-container text-on-secondary-container" />
+      {/* ─── Stats ─── */}
+      <div className="grid grid-cols-3 gap-2">
+        <StatCard
+          icon={Users}
+          label="Total"
+          value={totalUsers}
+          accent="bg-primary/10"
+          iconColor="text-primary"
+        />
+        <StatCard
+          icon={Shield}
+          label="Admins"
+          value={adminCount}
+          accent="bg-primary-container/60"
+          iconColor="text-on-primary-container"
+        />
+        <StatCard
+          icon={UserCheck}
+          label="Regular"
+          value={regularCount}
+          accent="bg-secondary-container/60"
+          iconColor="text-on-secondary-container"
+        />
       </div>
 
-      {/* Table */}
-      <div className="bg-surface border border-outline-variant rounded-xl shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-outline-variant flex items-center justify-between gap-3">
-          <span className="text-[11px] font-semibold text-secondary uppercase tracking-wide shrink-0">All accounts</span>
-          <div className="relative max-w-[240px] w-full">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search by email or role..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-7 pr-3 py-1.5 bg-background border border-outline-variant rounded-lg text-[12px] text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary hover:text-on-surface">
-                <X size={11} />
-              </button>
-            )}
-          </div>
+      {/* ─── Search ─── */}
+      <div className="relative">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Search by email or role..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full pl-8.5 pr-8 py-2.5 bg-surface border border-outline-variant rounded-xl text-[12.5px] text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+          style={{ paddingLeft: '2.1rem' }}
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-on-surface"
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
+
+      {/* ─── User list ─── */}
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-14 gap-3 text-secondary bg-surface border border-outline-variant rounded-2xl">
+          <User size={32} strokeWidth={1.2} className="opacity-25" />
+          <p className="text-[12.5px]">
+            {search ? `No users matching "${search}"` : 'No users found. Add one to get started.'}
+          </p>
+          <button onClick={openCreate} className="text-[11.5px] text-primary font-semibold hover:underline">
+            Add the first user →
+          </button>
         </div>
-
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 gap-2 text-secondary">
-            <User size={28} strokeWidth={1.5} className="opacity-30" />
-            <p className="text-xs">
-              {search ? `No users matching "${search}"` : 'No users found. Add one to get started.'}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="border-b border-outline-variant">
-                <tr>
-                  <th className="text-left py-2.5 px-4 text-[10.5px] font-semibold text-secondary uppercase tracking-wide">User</th>
-                  <th className="text-left py-2.5 px-4 text-[10.5px] font-semibold text-secondary uppercase tracking-wide">Role</th>
-                  <th className="text-right py-2.5 px-4 text-[10.5px] font-semibold text-secondary uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(user => {
-                  const { bg, text } = getAvatarColor(user.email);
-                  return (
-                    <tr key={user.id} className="border-b border-outline-variant/40 hover:bg-secondary-container/15 transition-colors last:border-0">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${bg} ${text}`}>
-                            {getInitials(user.email)}
-                          </div>
-                          <span className="text-on-surface text-[12.5px]">{user.email}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ${
-                          user.role === 'ADMIN'
-                            ? 'bg-primary-container text-on-primary-container'
-                            : 'bg-secondary-container text-on-secondary-container'
-                        }`}>
-                          <Shield size={10} />
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {/* UPDATED: opens modal instead of window.confirm */}
-                        <button
-                          onClick={() => openDeleteModal(user)}
-                          className="text-outline hover:text-error hover:bg-error-container/50 transition-all p-1.5 rounded-md"
-                          title="Delete user"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {filtered.length > 0 && (
-          <div className="px-4 py-2.5 border-t border-outline-variant/50 text-[11px] text-secondary">
-            Showing {filtered.length} of {totalUsers} user{totalUsers !== 1 ? 's' : ''}
-          </div>
-        )}
-      </div>
-
-      {/* Create User Modal */}
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && closeModal()}
-        >
-          <div className="bg-surface border border-outline-variant rounded-2xl shadow-2xl w-full max-w-[520px] mx-4 overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200">
-            <div className="flex items-start justify-between px-6 pt-6 pb-0">
-              <div>
-                <h2 className="text-[16px] font-semibold text-on-surface tracking-tight">New account</h2>
-                <p className="text-[12px] text-secondary mt-0.5">Fill in the details to create a user</p>
-              </div>
-              <button
-                onClick={closeModal}
-                className="text-secondary hover:text-on-surface bg-secondary-container/30 hover:bg-secondary-container/60 transition-all p-1.5 rounded-lg"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="px-6 pt-4">
-              {error && (
-                <div className="px-4 py-2.5 bg-error-container text-on-error-container text-[12px] rounded-lg">{error}</div>
-              )}
-              {successMsg && (
-                <div className="px-4 py-2.5 bg-success-container text-on-success-container text-[12px] rounded-lg">{successMsg}</div>
-              )}
-            </div>
-
-            <div className="px-6 pt-4 pb-0 space-y-4">
-              <div>
-                <label className="block text-[11px] font-semibold text-secondary uppercase tracking-wide mb-1.5">Email address</label>
-                <input
-                  type="email"
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-background border border-outline-variant rounded-lg text-[13px] text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-secondary uppercase tracking-wide mb-1.5">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Min. 6 characters"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    minLength={6}
-                    className="w-full pl-4 pr-11 py-3 bg-background border border-outline-variant rounded-lg text-[13px] text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(v => !v)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-secondary hover:text-on-surface transition-colors"
+      ) : (
+        <>
+          {/* Mobile: card list */}
+          <div className="sm:hidden space-y-1.5">
+            {filtered.map((user) => {
+              const { bg, text } = getAvatarColor(user.email);
+              return (
+                <div
+                  key={user.id}
+                  className="bg-surface border border-outline-variant rounded-xl px-3.5 py-3 flex items-center gap-3"
+                >
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold ${bg} ${text}`}
                   >
-                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    {getInitials(user.email)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[12.5px] text-on-surface truncate">
+                      {user.email}
+                    </p>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold mt-1 ${
+                        user.role === 'ADMIN'
+                          ? 'bg-primary-container text-on-primary-container'
+                          : 'bg-secondary-container text-on-secondary-container'
+                      }`}
+                    >
+                      <Shield size={10} />
+                      {user.role}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => openDelete(user)}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-secondary hover:text-error hover:bg-error-container/40 transition-all"
+                  >
+                    <Trash2 size={13} />
                   </button>
                 </div>
-                <p className="text-[11px] text-secondary mt-1.5">Password must be at least 6 characters long.</p>
-              </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden sm:block bg-surface border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-outline-variant">
+              <span className="text-[10px] font-semibold text-secondary uppercase tracking-widest">
+                All accounts
+              </span>
             </div>
-
-            <div className="mx-6 mt-5 border-t border-outline-variant/50" />
-
-            <div className="flex gap-2.5 justify-end px-6 py-5">
-              <button
-                onClick={closeModal}
-                className="px-5 py-2.5 text-[13px] font-medium text-secondary border border-outline-variant rounded-lg hover:bg-secondary-container/30 hover:text-on-surface transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={submitting}
-                className="flex items-center gap-1.5 px-5 py-2.5 bg-primary text-on-primary text-[13px] font-semibold rounded-lg hover:brightness-110 disabled:opacity-55 transition-all"
-              >
-                <Plus size={15} />
-                {submitting ? 'Creating...' : 'Create user'}
-              </button>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="border-b border-outline-variant bg-background/50">
+                  <tr>
+                    <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-secondary uppercase tracking-wide">
+                      User
+                    </th>
+                    <th className="text-left py-2.5 px-4 text-[10px] font-semibold text-secondary uppercase tracking-wide">
+                      Role
+                    </th>
+                    <th className="text-right py-2.5 px-4 text-[10px] font-semibold text-secondary uppercase tracking-wide">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((user) => {
+                    const { bg, text } = getAvatarColor(user.email);
+                    return (
+                      <tr
+                        key={user.id}
+                        className="border-b border-outline-variant/40 last:border-0 hover:bg-secondary-container/10 transition-colors"
+                      >
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <div
+                              className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${bg} ${text}`}
+                            >
+                              {getInitials(user.email)}
+                            </div>
+                            <span className="text-on-surface font-medium text-[12.5px]">
+                              {user.email}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+                              user.role === 'ADMIN'
+                                ? 'bg-primary-container text-on-primary-container'
+                                : 'bg-secondary-container text-on-secondary-container'
+                            }`}
+                          >
+                            <Shield size={10} />
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            onClick={() => openDelete(user)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-secondary hover:text-error hover:bg-error-container/40 transition-all"
+                            title="Delete user"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-2 border-t border-outline-variant/50 text-[10.5px] text-secondary">
+              Showing {filtered.length} of {totalUsers} user{totalUsers !== 1 ? 's' : ''}
             </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* --- NEW: Delete Confirmation Modal --- */}
-      {deleteModalOpen && userToDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && closeDeleteModal()}
-        >
-          <div className="bg-surface border border-outline-variant rounded-2xl shadow-2xl w-full max-w-[420px] mx-4 overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200">
+      {/* ─── Mobile FAB ─── */}
+      <button
+        onClick={openCreate}
+        className="sm:hidden fixed bottom-6 right-5 z-40 w-12 h-12 rounded-full bg-primary text-on-primary shadow-lg shadow-primary/30 flex items-center justify-center hover:brightness-110 active:scale-95 transition-all"
+      >
+        <Plus size={20} />
+      </button>
 
-            {/* Header */}
-            <div className="flex items-start justify-between px-6 pt-6 pb-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-error-container flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle size={16} className="text-error" />
-                </div>
-                <div>
-                  <h2 className="text-[15px] font-semibold text-on-surface tracking-tight">Delete account</h2>
-                  <p className="text-[12px] text-secondary mt-0.5">This action cannot be undone</p>
-                </div>
-              </div>
+      {/* ══════════ CREATE USER SHEET ══════════ */}
+      <Sheet open={createOpen} onClose={() => setCreateOpen(false)}>
+        <div className="px-5 pt-5 pb-0 flex items-start justify-between">
+          <div>
+            <h2 className="text-[15px] font-bold text-on-surface">New account</h2>
+            <p className="text-[11.5px] text-secondary mt-0.5">Fill in the details to create a user</p>
+          </div>
+          <button
+            onClick={() => setCreateOpen(false)}
+            className="w-7 h-7 flex items-center justify-center rounded-xl text-secondary hover:bg-secondary-container/40 transition-all"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        {createError && (
+          <div className="mx-5 mt-3.5 px-3.5 py-2.5 bg-error-container text-on-error-container text-[11.5px] rounded-xl flex items-center gap-2">
+            <AlertTriangle size={11} />{createError}
+          </div>
+        )}
+
+        <div className="px-5 pt-4 space-y-3.5">
+          <Field label="Email address">
+            <input
+              type="email"
+              placeholder="name@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Password">
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Min. 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputCls + ' pr-10'}
+                minLength={6}
+              />
               <button
-                onClick={closeDeleteModal}
-                className="text-secondary hover:text-on-surface bg-secondary-container/30 hover:bg-secondary-container/60 transition-all p-1.5 rounded-lg"
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-on-surface transition-colors"
               >
-                <X size={16} />
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
+            <p className="text-[11px] text-secondary mt-1.5">Password must be at least 6 characters long.</p>
+          </Field>
+        </div>
 
-            {/* Body */}
-            <div className="px-6 pt-5 pb-0">
-              <p className="text-[13px] text-on-surface leading-relaxed">
-                You are about to permanently delete{' '}
-                <span className="font-semibold text-on-surface">{userToDelete.email}</span>.
-                Their account and all associated data will be removed.
-              </p>
+        <div className="mx-5 mt-5 border-t border-outline-variant/50" />
+
+        <div className="flex gap-2.5 justify-end px-5 py-5">
+          <button
+            onClick={() => setCreateOpen(false)}
+            className="px-5 py-2.5 text-[13px] font-medium text-secondary border border-outline-variant rounded-lg hover:bg-secondary-container/30 hover:text-on-surface transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={createLoading}
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-primary text-on-primary text-[13px] font-semibold rounded-lg hover:brightness-110 disabled:opacity-55 transition-all"
+          >
+            <Plus size={15} />
+            {createLoading ? 'Creating...' : 'Create user'}
+          </button>
+        </div>
+      </Sheet>
+
+      {/* ══════════ DELETE CONFIRMATION SHEET ══════════ */}
+      <Sheet open={deleteOpen} onClose={() => setDeleteOpen(false)}>
+        <div className="px-5 pt-5 pb-0 flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-error-container flex items-center justify-center flex-shrink-0">
+              <Trash2 size={15} className="text-error" />
             </div>
-
-            <div className="mx-6 mt-5 border-t border-outline-variant/50" />
-
-            {/* Footer */}
-            <div className="flex gap-2.5 justify-end px-6 py-5">
-              <button
-                onClick={closeDeleteModal}
-                disabled={deleting}
-                className="px-5 py-2.5 text-[13px] font-medium text-secondary border border-outline-variant rounded-lg hover:bg-secondary-container/30 hover:text-on-surface transition-all disabled:opacity-55"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex items-center gap-1.5 px-5 py-2.5 bg-error text-on-error text-[13px] font-semibold rounded-lg hover:brightness-110 disabled:opacity-55 transition-all"
-              >
-                <Trash2 size={14} />
-                {deleting ? 'Deleting...' : 'Delete user'}
-              </button>
+            <div>
+              <h2 className="text-[14.5px] font-bold text-on-surface">Delete account?</h2>
+              <p className="text-[11px] text-secondary mt-0.5">This cannot be undone</p>
             </div>
           </div>
+          <button
+            onClick={() => setDeleteOpen(false)}
+            className="w-7 h-7 flex items-center justify-center rounded-xl text-secondary hover:bg-secondary-container/40 transition-all"
+          >
+            <X size={15} />
+          </button>
         </div>
-      )}
 
+        <div className="px-5 pt-4 pb-0">
+          <div className="bg-error-container/30 border border-error-container rounded-xl px-3.5 py-3 text-[12.5px] text-on-surface">
+            You're about to permanently delete{' '}
+            <span className="font-bold">{userToDelete?.email}</span>.
+            Their account and all associated data will be removed.
+          </div>
+        </div>
+
+        <div className="mx-5 mt-5 border-t border-outline-variant/50" />
+
+        <div className="flex gap-2.5 justify-end px-5 py-5">
+          <button
+            onClick={() => setDeleteOpen(false)}
+            disabled={deleteLoading}
+            className="px-5 py-2.5 text-[13px] font-medium text-secondary border border-outline-variant rounded-lg hover:bg-secondary-container/30 hover:text-on-surface transition-all disabled:opacity-55"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleteLoading}
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-error text-on-error text-[13px] font-semibold rounded-lg hover:brightness-110 disabled:opacity-55 transition-all"
+          >
+            <Trash2 size={14} />
+            {deleteLoading ? 'Deleting...' : 'Delete user'}
+          </button>
+        </div>
+      </Sheet>
     </div>
   );
 };

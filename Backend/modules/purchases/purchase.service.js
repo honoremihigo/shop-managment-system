@@ -194,15 +194,15 @@ const getAllPurchases = async (page, limit) => {
                 as: 'user',
                 attributes: ['id', 'email', 'role']
             },
-            // {
-            //     model: PurchasedItems,
-            //     as: 'purchasedItems',
-            //     include: [{
-            //         model: Product,
-            //         as: 'product',
-            //         attributes: ['id', 'name', 'unit']
-            //     }]
-            // }
+            {
+                model: PurchasedItems,           // ← uncomment this
+                as: 'purchasedItems',
+                include: [{
+                    model: Product,
+                    as: 'product',
+                    attributes: ['id', 'name', 'unit']
+                }]
+            }
         ],
         order: [['createdAt', 'DESC']],
         offset: offset,
@@ -211,13 +211,13 @@ const getAllPurchases = async (page, limit) => {
     
     const totalPages = Math.ceil(count / limit);
     
-    // Calculate summary for current page
+    // Calculate proper summary for the current page
     const pageSummary = rows.reduce((acc, purchase) => {
-        // const purchaseTotal = purchase.purchasedItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
-        // acc.totalPurchases++;
-        // acc.totalItems += purchase.purchasedItems.reduce((sum, item) => sum + item.quantity, 0);
-        // acc.totalAmount += purchaseTotal;
-        // return acc;
+        const purchaseTotal = purchase.purchasedItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+        acc.totalPurchases++;
+        acc.totalItems += purchase.purchasedItems.reduce((sum, item) => sum + item.quantity, 0);
+        acc.totalAmount += purchaseTotal;
+        return acc;
     }, { totalPurchases: 0, totalItems: 0, totalAmount: 0 });
     
     return {
