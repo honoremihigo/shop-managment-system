@@ -1,5 +1,5 @@
 // src/pages/StockManagement/StockManagement.jsx
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef } from "react";
 import {
   Package,
   Plus,
@@ -12,27 +12,38 @@ import {
   AlertTriangle,
   Boxes,
   ChevronDown,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   fetchStocks,
   addStock,
   updateStock,
   deleteStock,
   fetchAllProducts,
-} from '../../services/main/stockService';
-import { useAuth } from '../../context/AuthContext';
+} from "../../services/main/stockService";
+import { useAuth } from "../../context/AuthContext";
 
 /* ─── Stat Card ─── */
-const StatCard = ({ icon: Icon, label, value, accent, iconColor, valueColor }) => (
+const StatCard = ({
+  icon: Icon,
+  label,
+  value,
+  accent,
+  iconColor,
+  valueColor,
+}) => (
   <div className="flex items-center gap-2.5 bg-surface border border-outline-variant rounded-xl px-3 py-2.5 shadow-sm">
-    <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>
+    <div
+      className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}
+    >
       <Icon size={13} className={iconColor} />
     </div>
     <div className="min-w-0">
       <p className="text-[9.5px] text-secondary font-semibold uppercase tracking-wide leading-none mb-0.5 truncate">
         {label}
       </p>
-      <p className={`text-[17px] font-bold leading-tight ${valueColor || 'text-on-surface'}`}>
+      <p
+        className={`text-[17px] font-bold leading-tight ${valueColor || "text-on-surface"}`}
+      >
         {value}
       </p>
     </div>
@@ -63,7 +74,7 @@ const StockBadge = ({ qty }) => {
 };
 
 /* ─── Bottom Sheet / Modal wrapper ─── */
-const Sheet = ({ open, onClose, children, maxWidth = 'max-w-[520px]' }) => {
+const Sheet = ({ open, onClose, children, maxWidth = "max-w-[520px]" }) => {
   if (!open) return null;
   return (
     <div
@@ -101,14 +112,14 @@ const Field = ({ label, children }) => (
 /* ─── Searchable Product Select ─── */
 const SearchableSelect = ({ options, value, onChange, disabledIds = [] }) => {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const ref = useRef(null);
 
   const available = options.filter(
-    (p) => !disabledIds.includes(p.id) || p.id === value
+    (p) => !disabledIds.includes(p.id) || p.id === value,
   );
   const filtered = available.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+    p.name.toLowerCase().includes(search.toLowerCase()),
   );
   const selected = options.find((p) => p.id === value);
 
@@ -116,8 +127,8 @@ const SearchableSelect = ({ options, value, onChange, disabledIds = [] }) => {
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   return (
@@ -127,8 +138,8 @@ const SearchableSelect = ({ options, value, onChange, disabledIds = [] }) => {
         onClick={() => setOpen(!open)}
         className={`${inputCls} flex items-center justify-between text-left`}
       >
-        <span className={selected ? 'text-on-surface' : 'text-secondary'}>
-          {selected ? selected.name : 'Select product'}
+        <span className={selected ? "text-on-surface" : "text-secondary"}>
+          {selected ? selected.name : "Select product"}
         </span>
         <ChevronDown size={14} className="text-secondary flex-shrink-0 ml-2" />
       </button>
@@ -147,7 +158,9 @@ const SearchableSelect = ({ options, value, onChange, disabledIds = [] }) => {
           </div>
           <div className="overflow-y-auto max-h-36">
             {filtered.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-secondary">No products found</p>
+              <p className="px-3 py-2 text-xs text-secondary">
+                No products found
+              </p>
             ) : (
               filtered.map((p) => (
                 <button
@@ -156,10 +169,10 @@ const SearchableSelect = ({ options, value, onChange, disabledIds = [] }) => {
                   onClick={() => {
                     onChange(p.id);
                     setOpen(false);
-                    setSearch('');
+                    setSearch("");
                   }}
                   className={`w-full text-left px-3 py-1.5 text-xs hover:bg-primary-container/20 transition-colors ${
-                    p.id === value ? 'bg-primary-container/30 font-medium' : ''
+                    p.id === value ? "bg-primary-container/30 font-medium" : ""
                   }`}
                 >
                   {p.name}
@@ -174,25 +187,25 @@ const SearchableSelect = ({ options, value, onChange, disabledIds = [] }) => {
 };
 
 const inputCls =
-  'w-full px-3.5 py-2.5 bg-background border border-outline-variant rounded-xl text-[13px] text-on-surface outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all';
+  "w-full px-3.5 py-2.5 bg-background border border-outline-variant rounded-xl text-[13px] text-on-surface outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all";
 
 const fmt = (n) =>
-  new Intl.NumberFormat('fr-RW', {
-    style: 'currency',
-    currency: 'RWF',
+  new Intl.NumberFormat("fr-RW", {
+    style: "currency",
+    currency: "RWF",
     minimumFractionDigits: 0,
   }).format(n);
 
 const StockManagement = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === "ADMIN";
 
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -203,20 +216,20 @@ const StockManagement = () => {
   /* Create – bulk array */
   const [createOpen, setCreateOpen] = useState(false);
   const [newStocks, setNewStocks] = useState([
-    { product_id: '', quantity: '', costPrice: '', sellingPrice: '' },
+    { product_id: "", quantity: "", costPrice: "", sellingPrice: "" },
   ]);
-  const [createError, setCreateError] = useState('');
+  const [createError, setCreateError] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
 
   /* Edit */
   const [editOpen, setEditOpen] = useState(false);
   const [editingStock, setEditingStock] = useState(null);
   const [editForm, setEditForm] = useState({
-    quantity: '',
-    costPrice: '',
-    sellingPrice: '',
+    quantity: "",
+    costPrice: "",
+    sellingPrice: "",
   });
-  const [editError, setEditError] = useState('');
+  const [editError, setEditError] = useState("");
   const [editLoading, setEditLoading] = useState(false);
 
   /* Delete */
@@ -233,7 +246,7 @@ const StockManagement = () => {
       setTotalPages(res.totalPages);
       setCurrentPage(res.currentPage);
     } catch {
-      setError('Failed to load stock records');
+      setError("Failed to load stock records");
     } finally {
       setLoading(false);
     }
@@ -245,7 +258,7 @@ const StockManagement = () => {
       const prods = await fetchAllProducts();
       setAllProducts(prods);
     } catch {
-      setError('Failed to load products');
+      setError("Failed to load products");
     } finally {
       setProductsLoading(false);
     }
@@ -261,11 +274,11 @@ const StockManagement = () => {
 
   const inStockCount = useMemo(
     () => stocks.filter((s) => s.quantity > 0).length,
-    [stocks]
+    [stocks],
   );
   const lowStockCount = useMemo(
     () => stocks.filter((s) => s.quantity < 10).length,
-    [stocks]
+    [stocks],
   );
 
   const filtered = useMemo(() => {
@@ -274,54 +287,60 @@ const StockManagement = () => {
     return stocks.filter(
       (s) =>
         s.product?.name?.toLowerCase().includes(q) ||
-        s.product?.unit?.toLowerCase().includes(q)
+        s.product?.unit?.toLowerCase().includes(q),
     );
   }, [stocks, search]);
 
   /* ── Create helpers (bulk) ── */
   const openCreate = () => {
-    setNewStocks([{ product_id: '', quantity: '', costPrice: '', sellingPrice: '' }]);
-    setCreateError('');
+    setNewStocks([
+      { product_id: "", quantity: "", costPrice: "", sellingPrice: "" },
+    ]);
+    setCreateError("");
     setCreateOpen(true);
   };
 
   const updateRow = (index, field, value) => {
-    setNewStocks(prev =>
-      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
+    setNewStocks((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)),
     );
   };
 
   const removeRow = (index) => {
     if (newStocks.length === 1) return;
-    setNewStocks(prev => prev.filter((_, i) => i !== index));
+    setNewStocks((prev) => prev.filter((_, i) => i !== index));
   };
 
   const addRow = () => {
-    setNewStocks(prev => [
+    setNewStocks((prev) => [
       ...prev,
-      { product_id: '', quantity: '', costPrice: '', sellingPrice: '' },
+      { product_id: "", quantity: "", costPrice: "", sellingPrice: "" },
     ]);
   };
 
   const handleCreate = async () => {
     const invalid = newStocks.some(
-      (s) => !s.product_id || !s.quantity || !s.costPrice || !s.sellingPrice
+      (s) => !s.product_id || !s.quantity || !s.costPrice || !s.sellingPrice,
     );
     if (invalid) {
-      setCreateError('All fields are required for each stock entry');
+      setCreateError("All fields are required for each stock entry");
       return;
     }
 
     // Duplicate check
     const productIds = newStocks.map((s) => s.product_id);
-    const dupes = productIds.filter((id, idx) => productIds.indexOf(id) !== idx);
+    const dupes = productIds.filter(
+      (id, idx) => productIds.indexOf(id) !== idx,
+    );
     if (dupes.length > 0) {
-      setCreateError('You cannot select the same product twice in one submission.');
+      setCreateError(
+        "You cannot select the same product twice in one submission.",
+      );
       return;
     }
 
     setCreateLoading(true);
-    setCreateError('');
+    setCreateError("");
     try {
       const payload = newStocks.map((s) => ({
         product_id: s.product_id,
@@ -334,7 +353,7 @@ const StockManagement = () => {
       setCreateOpen(false);
       loadStocks(currentPage);
     } catch (err) {
-      setCreateError(err.response?.data?.message || 'Error adding stock');
+      setCreateError(err.response?.data?.message || "Error adding stock");
     } finally {
       setCreateLoading(false);
     }
@@ -344,17 +363,17 @@ const StockManagement = () => {
   const openEdit = (stock) => {
     setEditingStock(stock);
     setEditForm({
-      quantity: stock.quantity || '',
-      costPrice: stock.costPrice || '',
-      sellingPrice: stock.sellingPrice || '',
+      quantity: stock.quantity || "",
+      costPrice: stock.costPrice || "",
+      sellingPrice: stock.sellingPrice || "",
     });
-    setEditError('');
+    setEditError("");
     setEditOpen(true);
   };
 
   const handleEdit = async () => {
     if (!editForm.quantity && !editForm.costPrice && !editForm.sellingPrice) {
-      setEditError('At least one field must be updated');
+      setEditError("At least one field must be updated");
       return;
     }
     setEditLoading(true);
@@ -362,13 +381,15 @@ const StockManagement = () => {
       await updateStock(editingStock.id, {
         quantity: editForm.quantity ? Number(editForm.quantity) : undefined,
         costPrice: editForm.costPrice ? Number(editForm.costPrice) : undefined,
-        sellingPrice: editForm.sellingPrice ? Number(editForm.sellingPrice) : undefined,
+        sellingPrice: editForm.sellingPrice
+          ? Number(editForm.sellingPrice)
+          : undefined,
       });
-      setSuccessMsg('Stock updated');
+      setSuccessMsg("Stock updated");
       setEditOpen(false);
       loadStocks(currentPage);
     } catch (err) {
-      setEditError(err.response?.data?.message || 'Error updating stock');
+      setEditError(err.response?.data?.message || "Error updating stock");
     } finally {
       setEditLoading(false);
     }
@@ -384,11 +405,11 @@ const StockManagement = () => {
     setDeleteLoading(true);
     try {
       await deleteStock(stockToDelete.id);
-      setSuccessMsg('Stock deleted');
+      setSuccessMsg("Stock deleted");
       setDeleteOpen(false);
       loadStocks(currentPage);
     } catch {
-      setError('Failed to delete stock');
+      setError("Failed to delete stock");
       setDeleteOpen(false);
     } finally {
       setDeleteLoading(false);
@@ -401,7 +422,7 @@ const StockManagement = () => {
 
   useEffect(() => {
     if (!successMsg) return;
-    const t = setTimeout(() => setSuccessMsg(''), 3000);
+    const t = setTimeout(() => setSuccessMsg(""), 3000);
     return () => clearTimeout(t);
   }, [successMsg]);
 
@@ -425,8 +446,12 @@ const StockManagement = () => {
       {/* ─── Header ─── */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-[17px] font-bold text-on-surface tracking-tight">Stock</h1>
-          <p className="text-[11px] text-secondary mt-0.5">{totalItems} records</p>
+          <h1 className="text-[17px] font-bold text-on-surface tracking-tight">
+            Stock
+          </h1>
+          <p className="text-[11px] text-secondary mt-0.5">
+            {totalItems} records
+          </p>
         </div>
         <button
           onClick={openCreate}
@@ -440,14 +465,21 @@ const StockManagement = () => {
       {/* ─── Toast banners ─── */}
       {error && (
         <div className="flex items-center justify-between px-3.5 py-2.5 bg-error-container text-on-error-container text-[11.5px] rounded-xl">
-          <span className="flex items-center gap-2"><AlertTriangle size={12} />{error}</span>
-          <button onClick={() => setError('')}><X size={12} /></button>
+          <span className="flex items-center gap-2">
+            <AlertTriangle size={12} />
+            {error}
+          </span>
+          <button onClick={() => setError("")}>
+            <X size={12} />
+          </button>
         </div>
       )}
       {successMsg && (
         <div className="flex items-center justify-between px-3.5 py-2.5 bg-primary-container text-on-primary-container text-[11.5px] rounded-xl">
           <span>{successMsg}</span>
-          <button onClick={() => setSuccessMsg('')}><X size={12} /></button>
+          <button onClick={() => setSuccessMsg("")}>
+            <X size={12} />
+          </button>
         </div>
       )}
 
@@ -473,24 +505,27 @@ const StockManagement = () => {
           value={lowStockCount}
           accent="bg-error-container/60"
           iconColor="text-error"
-          valueColor={lowStockCount > 0 ? 'text-error' : 'text-on-surface'}
+          valueColor={lowStockCount > 0 ? "text-error" : "text-on-surface"}
         />
       </div>
 
       {/* ─── Search ─── */}
       <div className="relative">
-        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
+        <Search
+          size={13}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none"
+        />
         <input
           type="text"
           placeholder="Search by product name or unit..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-8.5 pr-8 py-2.5 bg-surface border border-outline-variant rounded-xl text-[12.5px] text-on-surface outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-          style={{ paddingLeft: '2.1rem' }}
+          style={{ paddingLeft: "2.1rem" }}
         />
         {search && (
           <button
-            onClick={() => setSearch('')}
+            onClick={() => setSearch("")}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-on-surface"
           >
             <X size={12} />
@@ -502,8 +537,13 @@ const StockManagement = () => {
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-14 gap-3 text-secondary bg-surface border border-outline-variant rounded-2xl">
           <Package size={32} strokeWidth={1.2} className="opacity-25" />
-          <p className="text-[12.5px]">{search ? `No results for "${search}"` : 'No stock records yet'}</p>
-          <button onClick={openCreate} className="text-[11.5px] text-primary font-semibold hover:underline">
+          <p className="text-[12.5px]">
+            {search ? `No results for "${search}"` : "No stock records yet"}
+          </p>
+          <button
+            onClick={openCreate}
+            className="text-[11.5px] text-primary font-semibold hover:underline"
+          >
             Add the first stock →
           </button>
         </div>
@@ -528,9 +568,13 @@ const StockManagement = () => {
                     <StockBadge qty={stock.quantity} />
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10.5px] text-secondary">Buy: {fmt(stock.costPrice)}</span>
+                    <span className="text-[10.5px] text-secondary">
+                      Buy: {fmt(stock.costPrice)}
+                    </span>
                     <span className="text-[10.5px] text-secondary">·</span>
-                    <span className="text-[10.5px] text-secondary">Sell: {fmt(stock.sellingPrice)}</span>
+                    <span className="text-[10.5px] text-secondary">
+                      Sell: {fmt(stock.sellingPrice)}
+                    </span>
                   </div>
                 </div>
 
@@ -565,11 +609,18 @@ const StockManagement = () => {
               <table className="w-full text-xs">
                 <thead className="border-b border-outline-variant bg-background/50">
                   <tr>
-                    {['Product', 'Qty', 'Cost Price', 'Sell Price', 'Total Value', 'Actions'].map((h) => (
+                    {[
+                      "Product",
+                      "Qty",
+                      "Cost Price",
+                      "Sell Price",
+                      "Total Value",
+                      "Actions",
+                    ].map((h) => (
                       <th
                         key={h}
                         className={`py-2.5 px-4 text-[10px] font-semibold text-secondary uppercase tracking-wide ${
-                          h === 'Actions' ? 'text-right' : 'text-left'
+                          h === "Actions" ? "text-right" : "text-left"
                         }`}
                       >
                         {h}
@@ -593,8 +644,12 @@ const StockManagement = () => {
                         <td className="py-3 px-4">
                           <StockBadge qty={stock.quantity} />
                         </td>
-                        <td className="py-3 px-4 text-[12px] text-on-surface">{fmt(stock.costPrice)}</td>
-                        <td className="py-3 px-4 text-[12px] text-on-surface">{fmt(stock.sellingPrice)}</td>
+                        <td className="py-3 px-4 text-[12px] text-on-surface">
+                          {fmt(stock.costPrice)}
+                        </td>
+                        <td className="py-3 px-4 text-[12px] text-on-surface">
+                          {fmt(stock.sellingPrice)}
+                        </td>
                         <td className="py-3 px-4 text-[12px] text-on-surface font-medium">
                           {fmt(totalVal)}
                         </td>
@@ -625,7 +680,8 @@ const StockManagement = () => {
               </table>
             </div>
             <div className="px-4 py-2 border-t border-outline-variant/50 text-[10.5px] text-secondary">
-              Showing {filtered.length} of {totalItems} record{totalItems !== 1 ? 's' : ''}
+              Showing {filtered.length} of {totalItems} record
+              {totalItems !== 1 ? "s" : ""}
             </div>
           </div>
 
@@ -665,7 +721,12 @@ const StockManagement = () => {
       </button>
 
       {/* ══════════ CREATE SHEET (improved) ══════════ */}
-      <Sheet open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="max-w-[740px]">
+      {/* ══════════ CREATE SHEET (responsive) ══════════ */}
+      <Sheet
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        maxWidth="max-w-[800px]"
+      >
         <div className="px-5 pt-5 pb-0 flex items-start justify-between">
           <div>
             <h2 className="text-[15px] font-bold text-on-surface">Add Stock</h2>
@@ -683,18 +744,19 @@ const StockManagement = () => {
 
         {createError && (
           <div className="mx-5 mt-3.5 px-3.5 py-2.5 bg-error-container text-on-error-container text-[11.5px] rounded-xl flex items-center gap-2">
-            <AlertTriangle size={11} />{createError}
+            <AlertTriangle size={11} />
+            {createError}
           </div>
         )}
 
-        <div className="px-5 pt-4 space-y-3">
+        <div className="px-5 pt-4 space-y-4">
           {newStocks.map((stock, index) => (
             <div
               key={index}
-              className="flex gap-3 items-end border border-outline-variant rounded-xl p-3 bg-background/60"
+              className="border border-outline-variant rounded-xl p-3 bg-background/60 space-y-2 sm:space-y-0 sm:flex sm:gap-3 sm:items-end"
             >
               {/* Product – searchable */}
-              <div className="flex-1 min-w-0">
+              <div className="sm:flex-1">
                 <label className="block text-[9.5px] text-secondary font-semibold uppercase tracking-widest mb-1.5">
                   Product
                 </label>
@@ -704,54 +766,66 @@ const StockManagement = () => {
                   <SearchableSelect
                     options={allProducts}
                     value={stock.product_id}
-                    onChange={(val) => updateRow(index, 'product_id', val)}
+                    onChange={(val) => updateRow(index, "product_id", val)}
                     disabledIds={getDisabledIds(index)}
                   />
                 )}
               </div>
-              <div className="w-24 sm:w-28">
-                <label className="block text-[9.5px] text-secondary font-semibold uppercase tracking-widest mb-1.5">
-                  Qty
-                </label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={stock.quantity}
-                  onChange={(e) => updateRow(index, 'quantity', e.target.value)}
-                  className={inputCls}
-                  min="0"
-                />
+
+              {/* Quantity, Cost, Sell in a compact row */}
+              <div className="flex gap-2 sm:w-[340px]">
+                <div className="flex-1">
+                  <label className="block text-[9.5px] text-secondary font-semibold uppercase tracking-widest mb-1.5">
+                    Qty
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={stock.quantity}
+                    onChange={(e) =>
+                      updateRow(index, "quantity", e.target.value)
+                    }
+                    className={inputCls}
+                    min="0"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[9.5px] text-secondary font-semibold uppercase tracking-widest mb-1.5">
+                    Cost
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={stock.costPrice}
+                    onChange={(e) =>
+                      updateRow(index, "costPrice", e.target.value)
+                    }
+                    className={inputCls}
+                    min="0"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[9.5px] text-secondary font-semibold uppercase tracking-widest mb-1.5">
+                    Sell
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={stock.sellingPrice}
+                    onChange={(e) =>
+                      updateRow(index, "sellingPrice", e.target.value)
+                    }
+                    className={inputCls}
+                    min="0"
+                  />
+                </div>
               </div>
-              <div className="w-24 sm:w-28">
-                <label className="block text-[9.5px] text-secondary font-semibold uppercase tracking-widest mb-1.5">
-                  Cost
-                </label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={stock.costPrice}
-                  onChange={(e) => updateRow(index, 'costPrice', e.target.value)}
-                  className={inputCls}
-                  min="0"
-                />
-              </div>
-              <div className="w-24 sm:w-28">
-                <label className="block text-[9.5px] text-secondary font-semibold uppercase tracking-widest mb-1.5">
-                  Sell
-                </label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={stock.sellingPrice}
-                  onChange={(e) => updateRow(index, 'sellingPrice', e.target.value)}
-                  className={inputCls}
-                  min="0"
-                />
-              </div>
+
+              {/* Remove button when more than one row */}
               {newStocks.length > 1 && (
                 <button
                   onClick={() => removeRow(index)}
-                  className="w-9 h-10 flex items-center justify-center rounded-lg text-secondary hover:text-error hover:bg-error-container/30 transition-all flex-shrink-0"
+                  className="self-end sm:self-center w-9 h-9 flex items-center justify-center rounded-lg text-secondary hover:text-error hover:bg-error-container/30 transition-all flex-shrink-0"
                 >
                   <X size={14} />
                 </button>
@@ -781,129 +855,12 @@ const StockManagement = () => {
             className="flex-1 py-2.5 bg-primary text-on-primary text-[12.5px] font-bold rounded-xl hover:brightness-110 disabled:opacity-55 transition-all flex items-center justify-center gap-1.5"
           >
             <Plus size={14} />
-            {createLoading ? 'Adding…' : `Add ${newStocks.length > 1 ? `${newStocks.length} entries` : 'stock'}`}
+            {createLoading
+              ? "Adding…"
+              : `Add ${newStocks.length > 1 ? `${newStocks.length} entries` : "stock"}`}
           </button>
         </div>
       </Sheet>
-
-      {/* ══════════ EDIT SHEET (unchanged) ══════════ */}
-      <Sheet open={editOpen} onClose={() => setEditOpen(false)}>
-        <div className="px-5 pt-5 pb-0 flex items-start justify-between">
-          <div>
-            <h2 className="text-[15px] font-bold text-on-surface">Edit Stock</h2>
-            <p className="text-[11.5px] text-secondary mt-0.5 truncate max-w-[220px]">
-              {editingStock?.product?.name}
-            </p>
-          </div>
-          <button
-            onClick={() => setEditOpen(false)}
-            className="w-7 h-7 flex items-center justify-center rounded-xl text-secondary hover:bg-secondary-container/40 transition-all"
-          >
-            <X size={15} />
-          </button>
-        </div>
-
-        {editError && (
-          <div className="mx-5 mt-3.5 px-3.5 py-2.5 bg-error-container text-on-error-container text-[11.5px] rounded-xl">
-            {editError}
-          </div>
-        )}
-
-        <div className="px-5 pt-4 space-y-3.5">
-          <Field label="Quantity">
-            <input
-              type="number"
-              value={editForm.quantity}
-              onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
-              className={inputCls}
-              min="0"
-            />
-          </Field>
-          <Field label="Cost Price">
-            <input
-              type="number"
-              value={editForm.costPrice}
-              onChange={(e) => setEditForm({ ...editForm, costPrice: e.target.value })}
-              className={inputCls}
-              min="0"
-            />
-          </Field>
-          <Field label="Selling Price">
-            <input
-              type="number"
-              value={editForm.sellingPrice}
-              onChange={(e) => setEditForm({ ...editForm, sellingPrice: e.target.value })}
-              className={inputCls}
-              min="0"
-            />
-          </Field>
-        </div>
-
-        <div className="px-5 pt-4 pb-5 flex gap-2">
-          <button
-            onClick={() => setEditOpen(false)}
-            className="flex-1 py-2.5 text-[12.5px] font-semibold text-secondary border border-outline-variant rounded-xl hover:bg-secondary-container/30 transition-all"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleEdit}
-            disabled={editLoading}
-            className="flex-1 py-2.5 bg-primary text-on-primary text-[12.5px] font-bold rounded-xl hover:brightness-110 disabled:opacity-55 transition-all"
-          >
-            {editLoading ? 'Saving…' : 'Save changes'}
-          </button>
-        </div>
-      </Sheet>
-
-      {/* ══════════ DELETE SHEET ══════════ */}
-      {isAdmin && (
-        <Sheet open={deleteOpen} onClose={() => setDeleteOpen(false)}>
-          <div className="px-5 pt-5 pb-0 flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-error-container flex items-center justify-center flex-shrink-0">
-                <Trash2 size={15} className="text-error" />
-              </div>
-              <div>
-                <h2 className="text-[14.5px] font-bold text-on-surface">Delete stock?</h2>
-                <p className="text-[11px] text-secondary mt-0.5">This cannot be undone</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setDeleteOpen(false)}
-              className="w-7 h-7 flex items-center justify-center rounded-xl text-secondary hover:bg-secondary-container/40 transition-all"
-            >
-              <X size={15} />
-            </button>
-          </div>
-
-          <div className="px-5 pt-4 pb-0">
-            <div className="bg-error-container/30 border border-error-container rounded-xl px-3.5 py-3 text-[12.5px] text-on-surface">
-              You're about to permanently delete stock for{' '}
-              <span className="font-bold">{stockToDelete?.product?.name}</span>.
-              This will remove quantity and pricing records.
-            </div>
-          </div>
-
-          <div className="px-5 pt-4 pb-5 flex gap-2">
-            <button
-              onClick={() => setDeleteOpen(false)}
-              disabled={deleteLoading}
-              className="flex-1 py-2.5 text-[12.5px] font-semibold text-secondary border border-outline-variant rounded-xl hover:bg-secondary-container/30 disabled:opacity-55 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={deleteLoading}
-              className="flex-1 py-2.5 bg-error text-on-error text-[12.5px] font-bold rounded-xl hover:brightness-110 disabled:opacity-55 transition-all flex items-center justify-center gap-2"
-            >
-              <Trash2 size={13} />
-              {deleteLoading ? 'Deleting…' : 'Delete'}
-            </button>
-          </div>
-        </Sheet>
-      )}
     </div>
   );
 };
