@@ -1,6 +1,6 @@
 // src/components/Sidebar.jsx
-import { NavLink, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { NavLink, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import {
   LayoutDashboard,
   Package,
@@ -11,24 +11,25 @@ import {
   Store,
   X,
   Shield,
-  ScanLine
-} from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+  ScanLine,
+} from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import InstallButton from "./InstallButton";
 
 // Regular navigation – available to all authenticated users
 const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/today-sale',  icon: BarChart3, label: 'Today Sale' },
-  { to: '/sales',     icon: ShoppingCart, label: 'Sales' },
-  { to: '/products',   icon: Package, label: 'Products' },
-  { to: '/stocks',  icon: BarChart3, label: 'Stock' },
-  { to: '/purchases',  icon:ScanLine, label: 'Purchase' },
-//   { to: '/settings',   icon: Settings, label: 'Settings' },
+  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/today-sale", icon: BarChart3, label: "Today Sale" },
+  { to: "/sales", icon: ShoppingCart, label: "Sales" },
+  { to: "/products", icon: Package, label: "Products" },
+  { to: "/stocks", icon: BarChart3, label: "Stock" },
+  { to: "/purchases", icon: ScanLine, label: "Purchase" },
+  //   { to: '/settings',   icon: Settings, label: 'Settings' },
 ];
 
 // Admin‑only links – will be appended only for ADMIN users
 const adminItems = [
-  { to: '/user-management', icon: Shield, label: 'User Management' },
+  { to: "/user-management", icon: Shield, label: "User Management" },
 ];
 
 const Sidebar = ({ open, onClose }) => {
@@ -37,7 +38,7 @@ const Sidebar = ({ open, onClose }) => {
 
   // Build the final link list based on role
   const links =
-    user?.role === 'ADMIN'
+    user?.role === "ADMIN"
       ? [...navItems, /* divider */ null, ...adminItems]
       : navItems;
 
@@ -87,12 +88,12 @@ const Sidebar = ({ open, onClose }) => {
             <NavLink
               key={to}
               to={to}
-              end={to === '/dashboard'}
+              end={to === "/dashboard"}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-md font-medium transition-colors ${
                   isActive
-                    ? 'bg-on-primary/10 text-on-primary'
-                    : 'text-on-primary/70 hover:bg-on-primary/5 hover:text-on-primary'
+                    ? "bg-on-primary/10 text-on-primary"
+                    : "text-on-primary/70 hover:bg-on-primary/5 hover:text-on-primary"
                 }`
               }
             >
@@ -104,8 +105,9 @@ const Sidebar = ({ open, onClose }) => {
       </nav>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-on-primary/10 text-label-sm text-on-primary/50">
-        v1.0.0 · ShopDesk
+      <div className="px-6 py-4 border-t border-on-primary/10 text-label-sm text-on-primary/50 flex items-center justify-between">
+        <span>v1.0.0 · ShopDesk</span>
+        <InstallButton />
       </div>
     </div>
   );
@@ -115,7 +117,7 @@ const Sidebar = ({ open, onClose }) => {
       {/* Mobile overlay */}
       <div
         className={`lg:hidden fixed inset-0 z-40 transition-all duration-300 ${
-          open ? 'visible opacity-100' : 'invisible opacity-0'
+          open ? "visible opacity-100" : "invisible opacity-0"
         }`}
       >
         <div
@@ -124,7 +126,7 @@ const Sidebar = ({ open, onClose }) => {
         />
         <div
           className={`absolute left-0 top-0 h-full w-64 transition-transform duration-300 ${
-            open ? 'translate-x-0' : '-translate-x-full'
+            open ? "translate-x-0" : "-translate-x-full"
           }`}
         >
           {content}
