@@ -171,14 +171,14 @@ export default function Login() {
           <div className="w-8 h-8 rounded-lg bg-on-primary/10 flex items-center justify-center">
             <Store className="text-on-primary w-4 h-4" />
           </div>
-          <span className="text-on-primary text-h2 font-bold">ShopDesk</span>
+          <span className="text-on-primary text-h2 font-bold">M.S ShopDesk</span>
         </div>
 
         <div className="flex-1 flex items-center justify-center px-8 py-12 lg:px-16">
           <div className="w-full max-w-sm">
             <div className="mb-stack-lg">
               <h2 className="text-h2 font-bold text-on-surface mb-1">Welcome back</h2>
-              <p className="text-body-md text-secondary">Sign in to your ShopDesk account</p>
+              <p className="text-body-md text-secondary">Sign in to your M.S ShopDesk account</p>
             </div>
 
             {error && (
@@ -222,7 +222,7 @@ export default function Login() {
                 }
               />
 
-              <div className="flex items-center justify-between pt-1">
+              {/* <div className="flex items-center justify-between pt-1">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -235,7 +235,7 @@ export default function Login() {
                 <a href="#" className="text-body-md font-medium text-primary">
                   Forgot password?
                 </a>
-              </div>
+              </div> */}
 
               <button
                 type="button"
@@ -275,13 +275,13 @@ export default function Login() {
               </button>
             </div>
 
-            <div className="flex items-center gap-3 my-6">
+            {/* <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px bg-outline-variant" />
               <span className="text-label-sm text-secondary">or continue with</span>
               <div className="flex-1 h-px bg-outline-variant" />
-            </div>
+            </div> */}
 
-            <button
+            {/* <button
               type="button"
               className="w-full flex items-center justify-center gap-3 bg-surface border border-outline hover:bg-secondary-container hover:border-outline text-on-surface text-label-md font-medium py-3 rounded-xl transition-all shadow-sm active:scale-[0.98]"
             >
@@ -299,7 +299,7 @@ export default function Login() {
               <span className="text-on-surface font-semibold">
                 Contact your administrator
               </span>
-            </p>
+            </p> */}
           </div>
         </div>
       </div>
