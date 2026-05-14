@@ -85,8 +85,7 @@ export default function Login() {
       navigate("/dashboard", { replace: true });
     } catch (err) {
       const message =
-        err?.response?.data?.message ||
-        "Login failed. Please check your credentials.";
+        err?.response?.data?.message || 'Server error'
       setError(message);
     } finally {
       setLoading(false);
