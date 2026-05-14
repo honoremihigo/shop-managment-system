@@ -4,6 +4,7 @@ const cors = require("cors")
 const cookieParser = require("cookie-parser")
 require('dotenv').config()
 const { testConnection, syncDatabase } = require("./config/database")
+const sequelize = require('sequelize')
 
 //import routes
 const authRoutes = require("./modules/auth/auth.routes")
