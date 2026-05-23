@@ -4,7 +4,6 @@ module.exports = {
       type: Sequelize.ENUM('cash', 'mobile_money', 'credit'),
       allowNull: false,
       defaultValue: 'cash',
-      after: 'totalPrice' // optional
     });
   },
 
