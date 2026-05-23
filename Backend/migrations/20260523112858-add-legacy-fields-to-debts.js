@@ -6,27 +6,35 @@ module.exports = {
       allowNull: true,
     });
 
-    // Add legacy columns
-    await queryInterface.addColumn('debts', 'product_id', {
-      type: Sequelize.UUID,
-      allowNull: true,
-      references: {
-        model: 'products',
-        key: 'id',
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
-    });
+    // Add legacy columns – but first check if they exist
+    const tableInfo = await queryInterface.describeTable('debts');
 
-    await queryInterface.addColumn('debts', 'quantity', {
-      type: Sequelize.DECIMAL(10, 3),
-      allowNull: true,
-    });
+    if (!tableInfo.product_id) {
+      await queryInterface.addColumn('debts', 'product_id', {
+        type: Sequelize.UUID,
+        allowNull: true,
+        references: {
+          model: 'products',
+          key: 'id',
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+      });
+    }
 
-    await queryInterface.addColumn('debts', 'price', {
-      type: Sequelize.DECIMAL(10, 2),
-      allowNull: true,
-    });
+    if (!tableInfo.quantity) {
+      await queryInterface.addColumn('debts', 'quantity', {
+        type: Sequelize.DECIMAL(10, 3),
+        allowNull: true,
+      });
+    }
+
+    if (!tableInfo.price) {
+      await queryInterface.addColumn('debts', 'price', {
+        type: Sequelize.DECIMAL(10, 2),
+        allowNull: true,
+      });
+    }
   },
 
   down: async (queryInterface) => {
@@ -34,7 +42,6 @@ module.exports = {
     await queryInterface.removeColumn('debts', 'price');
     await queryInterface.removeColumn('debts', 'product_id');
 
-    // Revert sale_id to NOT NULL
     await queryInterface.changeColumn('debts', 'sale_id', {
       type: Sequelize.UUID,
       allowNull: false,
