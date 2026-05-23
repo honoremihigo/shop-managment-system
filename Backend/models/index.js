@@ -4,6 +4,7 @@ const Purchase = require('./Purchase');
 const PurchasedItems = require('./PurchasedItems');
 const Stock = require('./Stock');
 const Sale = require('./Sale');
+const Debt = require('./Debt')
 const defineRelationships = require('./relationShip');
 
 //to define relationships between models
@@ -15,5 +16,7 @@ module.exports = {
     Purchase,
     PurchasedItems,
     Stock,
-    Sale
+    Sale,
+    Debt
+    
 }

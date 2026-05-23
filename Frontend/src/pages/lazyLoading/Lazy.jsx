@@ -8,5 +8,6 @@ export const StockManagment = lazy(() => import("../dashboard/StockManagment"))
 export const SalesManagment = lazy(() => import("../dashboard/SalesManagement"))
 export const TodaySales = lazy(() => import("../dashboard/TodaySales"))
 export const PurchaseManagment = lazy(() => import("../dashboard/PurchasesManagement"))
+export const DebtManagment = lazy(() => import("../dashboard/DebtManagement"))
 //admin
 export const UserManagement = lazy(() => import("../dashboard/UserManagment"))

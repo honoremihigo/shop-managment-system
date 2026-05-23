@@ -1,5 +1,5 @@
 // src/pages/Dashboard/Dashboard.jsx
-import React ,{ useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Package,
   AlertTriangle,
@@ -10,6 +10,7 @@ import {
   Box,
   Coins,
   AlertCircle,
+  CreditCard,
 } from 'lucide-react';
 import {
   LineChart,
@@ -49,7 +50,15 @@ const Dashboard = () => {
 
       try {
         const dailyRes = await getDailySalesReport(7);
-        if (dailyRes.success) setDailySales(dailyRes.data);
+        console.log('dailyRes', dailyRes);   // temporary log for debugging
+        if (dailyRes.success) {
+          // Ensure revenue is a number
+          const data = (dailyRes.data || []).map(d => ({
+            ...d,
+            revenue: Number(d.revenue),
+          }));
+          setDailySales(data);
+        }
       } catch (err) {
         console.error('Daily sales failed:', err);
       }
@@ -74,6 +83,21 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
+  const yesterdayRevenue = useMemo(() => {
+    if (dailySales.length >= 2) return dailySales[dailySales.length - 2]?.revenue || 0;
+    return 0;
+  }, [dailySales]);
+
+  const yesterdayItems = useMemo(() => {
+    if (dailySales.length >= 2) return dailySales[dailySales.length - 2]?.items || 0;
+    return 0;
+  }, [dailySales]);
+
+  const yesterdaySalesCount = useMemo(() => {
+    if (dailySales.length >= 2) return dailySales[dailySales.length - 2]?.sales || 0;
+    return 0;
+  }, [dailySales]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -89,7 +113,6 @@ const Dashboard = () => {
       minimumFractionDigits: 0,
     }).format(val);
 
-  // Helper to render a stat card
   const StatCard = ({ icon: Icon, label, value, accent, iconColor, valueColor }) => (
     <div className="flex items-center gap-2.5 bg-surface border border-outline-variant rounded-xl px-3 py-2.5 shadow-sm">
       <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>
@@ -109,6 +132,9 @@ const Dashboard = () => {
   const overview = stats?.overview || {};
   const sales = stats?.sales || {};
   const purchases = stats?.purchases || {};
+  const debt = stats?.debt || {};
+
+  const netCollectedToday = (sales.today?.totalRevenue || 0) - (debt.todayOutstanding || 0);
 
   return (
     <div className="space-y-6 font-sans antialiased">
@@ -125,85 +151,171 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ─── Business Overview ─── */}
+      {/* ─── Overview ─── */}
       <section>
         <h2 className="text-sm font-semibold text-secondary uppercase tracking-wide mb-3">Overview</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          <StatCard
-            icon={Package}
-            label="Total Products"
-            value={overview.totalProducts ?? '—'}
-            accent="bg-primary/10"
-            iconColor="text-primary"
-          />
-          <StatCard
-            icon={Layers}
-            label="Stock Items"
-            value={overview.totalStockItems ?? '—'}
-            accent="bg-primary-container/60"
-            iconColor="text-on-primary-container"
-          />
-          <StatCard
-            icon={Coins}
-            label="Stock Value"
-            value={overview.stockValue !== undefined ? formatCurrency(overview.stockValue) : '—'}
-            accent="bg-tertiary-container/60"
-            iconColor="text-on-tertiary-container"
-          />
-          <StatCard
-            icon={AlertTriangle}
-            label="Low Stock"
-            value={overview.lowStockCount ?? '—'}
-            accent="bg-warning-container/60"
-            iconColor="text-warning"
-            valueColor={overview.lowStockCount > 0 ? 'text-warning' : 'text-on-surface'}
-          />
-          <StatCard
-            icon={AlertCircle}
-            label="Out of Stock"
-            value={overview.outOfStockCount ?? '—'}
-            accent="bg-error-container/60"
-            iconColor="text-error"
-            valueColor={overview.outOfStockCount > 0 ? 'text-error' : 'text-on-surface'}
-          />
+          <StatCard icon={Package} label="Total Products" value={overview.totalProducts ?? '—'} accent="bg-primary/10" iconColor="text-primary" />
+          <StatCard icon={Layers} label="Stock Items" value={overview.totalStockItems ?? '—'} accent="bg-primary-container/60" iconColor="text-on-primary-container" />
+          <StatCard icon={Coins} label="Stock Value" value={overview.stockValue !== undefined ? formatCurrency(overview.stockValue) : '—'} accent="bg-tertiary-container/60" iconColor="text-on-tertiary-container" />
+          <StatCard icon={AlertTriangle} label="Low Stock" value={overview.lowStockCount ?? '—'} accent="bg-warning-container/60" iconColor="text-warning" valueColor={overview.lowStockCount > 0 ? 'text-warning' : 'text-on-surface'} />
+          <StatCard icon={AlertCircle} label="Out of Stock" value={overview.outOfStockCount ?? '—'} accent="bg-error-container/60" iconColor="text-error" valueColor={overview.outOfStockCount > 0 ? 'text-error' : 'text-on-surface'} />
+          {/* Outstanding Debt */}
+          <StatCard icon={CreditCard} label="Outstanding Debt" value={formatCurrency(debt.totalOutstanding || 0)} accent="bg-error-container/60" iconColor="text-error" valueColor="text-error" />
         </div>
       </section>
 
       {/* ─── Sales Performance ─── */}
       <section>
         <h2 className="text-sm font-semibold text-secondary uppercase tracking-wide mb-3">Sales Performance</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          {[
-            { period: 'Today', data: sales.today, icon: DollarSign, accent: 'bg-primary/10', iconColor: 'text-primary' },
-            { period: 'This Week', data: sales.thisWeek, icon: TrendingUp, accent: 'bg-success-container/60', iconColor: 'text-success' },
-            { period: 'This Month', data: sales.thisMonth, icon: TrendingUp, accent: 'bg-tertiary-container/60', iconColor: 'text-tertiary' },
-            { period: 'This Year', data: sales.thisYear, icon: TrendingUp, accent: 'bg-secondary-container/60', iconColor: 'text-on-secondary-container' },
-          ].map(({ period, data, icon, accent, iconColor }) => (
-            <div key={period} className="bg-surface border border-outline-variant rounded-xl p-3.5 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-secondary uppercase tracking-wide">{period}</span>
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${accent}`}>
-                  {React.createElement(icon, { size: 13, className: iconColor })}
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs">
-                  <span className="text-secondary">Revenue</span>
-                  <span className="font-medium text-on-surface">
-                    {data?.totalRevenue !== undefined ? formatCurrency(data.totalRevenue) : '—'}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-secondary">Items</span>
-                  <span className="text-on-surface">{data?.totalItems ?? '—'}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-secondary">Sales</span>
-                  <span className="text-on-surface">{data?.totalSales ?? '—'}</span>
-                </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          {/* Today */}
+          <div className="bg-surface border border-outline-variant rounded-xl p-3.5 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-secondary uppercase tracking-wide">Today</span>
+              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                <DollarSign size={13} className="text-primary" />
               </div>
             </div>
-          ))}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Revenue</span>
+                <span className="font-medium text-on-surface">
+                  {sales.today?.totalRevenue !== undefined ? formatCurrency(sales.today.totalRevenue) : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Items</span>
+                <span className="text-on-surface">{sales.today?.totalItems ?? '—'}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Sales</span>
+                <span className="text-on-surface">{sales.today?.totalSales ?? '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Net Collected Today */}
+          <div className="bg-surface border border-outline-variant rounded-xl p-3.5 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-secondary uppercase tracking-wide">Net Collected</span>
+              <div className="w-7 h-7 rounded-lg bg-success-container/60 flex items-center justify-center">
+                <TrendingUp size={13} className="text-success" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Today</span>
+                <span className="font-medium text-on-surface">{formatCurrency(netCollectedToday)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">New debt</span>
+                <span className="text-on-surface">{formatCurrency(debt.todayOutstanding || 0)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Yesterday */}
+          <div className="bg-surface border border-outline-variant rounded-xl p-3.5 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-secondary uppercase tracking-wide">Yesterday</span>
+              <div className="w-7 h-7 rounded-lg bg-tertiary-container/60 flex items-center justify-center">
+                <TrendingUp size={13} className="text-tertiary" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Revenue</span>
+                <span className="font-medium text-on-surface">{formatCurrency(yesterdayRevenue)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Items</span>
+                <span className="text-on-surface">{yesterdayItems || '—'}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Sales</span>
+                <span className="text-on-surface">{yesterdaySalesCount || '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* This Week */}
+          <div className="bg-surface border border-outline-variant rounded-xl p-3.5 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-secondary uppercase tracking-wide">This Week</span>
+              <div className="w-7 h-7 rounded-lg bg-success-container/60 flex items-center justify-center">
+                <TrendingUp size={13} className="text-success" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Revenue</span>
+                <span className="font-medium text-on-surface">
+                  {sales.thisWeek?.totalRevenue !== undefined ? formatCurrency(sales.thisWeek.totalRevenue) : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Items</span>
+                <span className="text-on-surface">{sales.thisWeek?.totalItems ?? '—'}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Sales</span>
+                <span className="text-on-surface">{sales.thisWeek?.totalSales ?? '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* This Month */}
+          <div className="bg-surface border border-outline-variant rounded-xl p-3.5 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-secondary uppercase tracking-wide">This Month</span>
+              <div className="w-7 h-7 rounded-lg bg-tertiary-container/60 flex items-center justify-center">
+                <TrendingUp size={13} className="text-tertiary" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Revenue</span>
+                <span className="font-medium text-on-surface">
+                  {sales.thisMonth?.totalRevenue !== undefined ? formatCurrency(sales.thisMonth.totalRevenue) : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Items</span>
+                <span className="text-on-surface">{sales.thisMonth?.totalItems ?? '—'}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Sales</span>
+                <span className="text-on-surface">{sales.thisMonth?.totalSales ?? '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* This Year */}
+          <div className="bg-surface border border-outline-variant rounded-xl p-3.5 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-secondary uppercase tracking-wide">This Year</span>
+              <div className="w-7 h-7 rounded-lg bg-secondary-container/60 flex items-center justify-center">
+                <TrendingUp size={13} className="text-on-secondary-container" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Revenue</span>
+                <span className="font-medium text-on-surface">
+                  {sales.thisYear?.totalRevenue !== undefined ? formatCurrency(sales.thisYear.totalRevenue) : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Items</span>
+                <span className="text-on-surface">{sales.thisYear?.totalItems ?? '—'}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-secondary">Sales</span>
+                <span className="text-on-surface">{sales.thisYear?.totalSales ?? '—'}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -227,9 +339,7 @@ const Dashboard = () => {
             <div>
               <p className="text-secondary">Total Amount</p>
               <p className="text-on-surface font-medium">
-                {purchases.thisMonth?.totalAmount !== undefined
-                  ? formatCurrency(purchases.thisMonth.totalAmount)
-                  : '—'}
+                {purchases.thisMonth?.totalAmount !== undefined ? formatCurrency(purchases.thisMonth.totalAmount) : '—'}
               </p>
             </div>
           </div>
@@ -243,7 +353,7 @@ const Dashboard = () => {
           <h2 className="text-lg font-semibold text-on-surface mb-3">Sales Last 7 Days</h2>
           <div className="h-64 lg:h-72">
             {dailySales.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer key={JSON.stringify(dailySales)} width="100%" height="100%">
                 <LineChart data={dailySales}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#64748B" />
@@ -317,44 +427,25 @@ const Dashboard = () => {
           <table className="w-full text-sm">
             <thead className="border-b border-outline-variant">
               <tr>
-                <th className="text-left py-2 px-2 text-xs font-medium text-secondary uppercase tracking-wide">
-                  Product
-                </th>
-                <th className="text-left py-2 px-2 text-xs font-medium text-secondary uppercase tracking-wide">
-                  Unit
-                </th>
-                <th className="text-right py-2 px-2 text-xs font-medium text-secondary uppercase tracking-wide">
-                  Qty
-                </th>
-                <th className="text-right py-2 px-2 text-xs font-medium text-secondary uppercase tracking-wide">
-                  Cost Price
-                </th>
+                <th className="text-left py-2 px-2 text-xs font-medium text-secondary uppercase tracking-wide">Product</th>
+                <th className="text-left py-2 px-2 text-xs font-medium text-secondary uppercase tracking-wide">Unit</th>
+                <th className="text-right py-2 px-2 text-xs font-medium text-secondary uppercase tracking-wide">Qty</th>
+                <th className="text-right py-2 px-2 text-xs font-medium text-secondary uppercase tracking-wide">Cost Price</th>
               </tr>
             </thead>
             <tbody>
               {lowStock.length > 0 ? (
                 lowStock.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-outline-variant/50 hover:bg-secondary-container/20 transition-colors"
-                  >
-                    <td className="py-2 px-2 text-on-surface font-medium">
-                      {item.product?.name}
-                    </td>
+                  <tr key={item.id} className="border-b border-outline-variant/50 hover:bg-secondary-container/20 transition-colors">
+                    <td className="py-2 px-2 text-on-surface font-medium">{item.product?.name}</td>
                     <td className="py-2 px-2 text-secondary">{item.product?.unit}</td>
-                    <td className="py-2 px-2 text-right text-on-surface font-medium">
-                      {item.quantity}
-                    </td>
-                    <td className="py-2 px-2 text-right text-secondary">
-                      {formatCurrency(item.costPrice)}
-                    </td>
+                    <td className="py-2 px-2 text-right text-on-surface font-medium">{item.quantity}</td>
+                    <td className="py-2 px-2 text-right text-secondary">{formatCurrency(item.costPrice)}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="py-6 text-center text-secondary text-sm">
-                    No low stock items – great job!
-                  </td>
+                  <td colSpan="4" className="py-6 text-center text-secondary text-sm">No low stock items – great job!</td>
                 </tr>
               )}
             </tbody>

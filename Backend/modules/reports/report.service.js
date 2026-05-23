@@ -1,7 +1,33 @@
-// modules/reports/report.service.js
 const { sequelize } = require("../../config/database");
-const { Product, Stock, Sale, Purchase, PurchasedItems, User } = require("../../models");
+const { Product, Stock, Sale, Purchase, PurchasedItems, User, Debt } = require("../../models");
 const { Op } = require("sequelize");
+
+/**
+ * Get debt summary (helper – used inside getDashboardStats)
+ */
+const getDebtSummary = async () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const allPending = await Debt.findAll({ where: { status: 'pending' } });
+
+  const totalOutstanding = allPending.reduce(
+    (sum, d) => sum + parseFloat(d.totalAmount) - parseFloat(d.paidAmount),
+    0
+  );
+
+  const todayDebts = allPending.filter(d => new Date(d.createdAt) >= today);
+  const todayOutstanding = todayDebts.reduce(
+    (sum, d) => sum + parseFloat(d.totalAmount) - parseFloat(d.paidAmount),
+    0
+  );
+
+  return {
+    totalOutstanding,
+    todayOutstanding,
+    pendingCount: allPending.length,
+  };
+};
 
 /**
  * Get dashboard overview statistics
@@ -88,6 +114,9 @@ const getDashboardStats = async () => {
         }, { totalPurchases: 0, totalAmount: 0, totalItems: 0 });
     };
     
+    // Get debt summary
+    const debtSummary = await getDebtSummary();
+    
     return {
         overview: {
             totalProducts,
@@ -104,7 +133,8 @@ const getDashboardStats = async () => {
         },
         purchases: {
             thisMonth: calculatePurchaseSummary(monthPurchases)
-        }
+        },
+        debt: debtSummary
     };
 };
 

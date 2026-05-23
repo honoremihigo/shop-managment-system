@@ -24,6 +24,7 @@ const navItems = [
   { to: "/products", icon: Package, label: "Products" },
   { to: "/stocks", icon: BarChart3, label: "Stock" },
   { to: "/purchases", icon: ScanLine, label: "Purchase" },
+  { to: "/debts", icon: BarChart3, label: "Debts" },
   //   { to: '/settings',   icon: Settings, label: 'Settings' },
 ];
 
@@ -103,12 +104,6 @@ const Sidebar = ({ open, onClose }) => {
           );
         })}
       </nav>
-
-      {/* Footer */}
-      <div className="px-6 py-4 border-t border-on-primary/10 text-label-sm text-on-primary/50 flex items-center justify-between">
-        <span>v1.0.0 · ShopDesk</span>
-        <InstallButton />
-      </div>
     </div>
   );
 

@@ -1,7 +1,7 @@
 // modules/sales/sale.service.js - CORRECTED VERSION
 const { Op } = require("sequelize");
 const { sequelize } = require("../../config/database");
-const { Sale, Stock, Product, User } = require("../../models");
+const { Sale, Stock, Product, User, Debt } = require("../../models");
 
 /**
  * Create multiple sales in one go (bulk sales)
@@ -11,169 +11,133 @@ const { Sale, Stock, Product, User } = require("../../models");
  *  soldPrice:number
  * }>} salesData - array of all sales
  * @param {string} userId - the id of the one making the sale
+ * @param {Object} options - additional options
+ * @param {string} options.paymentMethod - 'cash' | 'mobile_money' | 'credit'
+ * @param {string} [options.customerName] - required if paymentMethod is 'credit'
+ * @param {string} [options.customerPhone] - optional phone number
  */
-const createBulkSales = async (salesData, userId) => {
-  // First we check if the salesData is an array
-  if (!Array.isArray(salesData)) {
-    throw new Error("salesData should be an array of sales");
+const createBulkSales = async (salesData, userId, options = {}) => {
+  const { paymentMethod = 'cash', customerName, customerPhone, isStockAdjusted = true } = options;
+
+  // --- validate payment method ---
+  const allowedMethods = ['cash', 'mobile_money', 'credit'];
+  if (!allowedMethods.includes(paymentMethod)) {
+    throw new Error(`Invalid payment method: ${paymentMethod}`);
   }
 
-  // Then we check if the salesData is empty
-  if (salesData.length === 0) {
-    throw new Error("salesData should not be empty");
-  }
+  // --- array validation ---
+  if (!Array.isArray(salesData)) throw new Error("salesData should be an array of sales");
+  if (salesData.length === 0) throw new Error("salesData should not be empty");
 
-  // We continue with validations to see if the datas provided are there
   let errors = [];
   let stockIds = [];
-
   salesData.forEach((sale, i) => {
-    if (!sale.stockId) {
-      errors.push(`sale${i} stockId should not be empty`);
-    }
-    if (!sale.quantity) {
-      errors.push(`sale${i} quantity should not be empty`);
-    }
-    if (!sale.soldPrice && sale.soldPrice !== 0) {
-      errors.push(`sale${i} sold price should not be empty`);
-    }
-    if (sale.quantity < 0) {
-      errors.push(`sale${i} quantity should not be negative`);
-    }
-    if (sale.soldPrice < 0) {
-      errors.push(`sale${i} sold price should not be negative`);
-    }
-
-    if (sale.stockId) {
-      stockIds.push(sale.stockId);
-    }
+    if (!sale.stockId) errors.push(`sale${i} stockId should not be empty`);
+    if (sale.quantity === undefined || sale.quantity === null) errors.push(`sale${i} quantity should not be empty`);
+    if (sale.soldPrice === undefined || sale.soldPrice === null) errors.push(`sale${i} sold price should not be empty`);
+    if (parseFloat(sale.quantity) < 0) errors.push(`sale${i} quantity should not be negative`);
+    if (parseFloat(sale.soldPrice) < 0) errors.push(`sale${i} sold price should not be negative`);
+    if (sale.stockId) stockIds.push(sale.stockId);
   });
+  if (errors.length > 0) throw new Error(errors[0]);
+  if (stockIds.length === 0) throw new Error("stockIds should not be empty");
 
-  if (errors.length > 0) {
-    throw new Error(errors[0]);
-  }
-
-  if (stockIds.length === 0) {
-    throw new Error("stockIds should not be empty");
-  }
-
-  // Here is checking all the stockIds are in the database before adding any record
   const stocks = await Stock.findAll({
     where: { id: stockIds },
-    include: [
-      {
-        model: Product,
-        as: "product",
-        attributes: ["id", "name", "unit"],
-      },
-    ],
+    include: [{ model: Product, as: "product", attributes: ["id", "name", "unit"] }],
   });
 
-  // Here am going to check the one which was not found
   let foundIds = stocks.map((s) => s.id);
   let missingIds = stockIds.filter((id) => !foundIds.includes(id));
-  console.log("foundIds:", foundIds);
-  console.log("missingIds:", missingIds);
 
-  // Check stock availability for found stocks
   let availabilityErrors = [];
   let validStocks = [];
-
   stocks.forEach((stock) => {
     const matchingSale = salesData.find((sale) => sale.stockId === stock.id);
-    if (matchingSale && stock.quantity < matchingSale.quantity) {
+    if (matchingSale && parseFloat(stock.quantity) < parseFloat(matchingSale.quantity)) {
       availabilityErrors.push(
-        `Insufficient stock for ${stock.product.name}: Available ${stock.quantity}, Requested ${matchingSale.quantity}`,
+        `Insufficient stock for ${stock.product.name}: Available ${stock.quantity}, Requested ${matchingSale.quantity}`
       );
     } else if (matchingSale) {
-      validStocks.push({
-        stock: stock,
-        sale: matchingSale,
-      });
+      validStocks.push({ stock, sale: matchingSale });
     }
   });
+  if (availabilityErrors.length > 0) throw new Error(availabilityErrors.join("; "));
 
-  if (availabilityErrors.length > 0) {
-    throw new Error(availabilityErrors.join("; "));
-  }
-
-  // Here we create an array of final sale datas which were found and filtered
   const finalSalesData = validStocks.map(({ stock, sale }) => {
     const soldPrice = parseFloat(sale.soldPrice);
-    const quantity = parseInt(sale.quantity);
+    const quantity = parseFloat(sale.quantity);          // decimal quantity
     const totalPrice = soldPrice * quantity;
-
     return {
       stockId: stock.id,
       userId: userId,
       quantity: quantity,
       soldPrice: soldPrice,
       totalPrice: totalPrice,
+      paymentMethod: paymentMethod,
+      isStockAdjusted: isStockAdjusted,
     };
   });
 
-  if (foundIds.length === 0) {
-    throw new Error("no sale happened because all stockIds were invalid");
-  }
+  if (foundIds.length === 0) throw new Error("no sale happened because all stockIds were invalid");
 
-  // On this line of code we are starting the transaction
   const transaction = await sequelize.transaction();
-
   try {
-    // Create all sale records
     const createdSales = await Sale.bulkCreate(finalSalesData, {
       transaction,
       validate: true,
+      returning: true,
     });
 
-    // Update stock quantities for each sale
-    for (const { stock, sale } of validStocks) {
-      const newQuantity = stock.quantity - parseInt(sale.quantity);
-      await Stock.update(
-        { quantity: newQuantity },
-        { where: { id: stock.id }, transaction },
-      );
+    // Update stock only if isStockAdjusted is true
+    if (isStockAdjusted) {
+      for (const { stock, sale } of validStocks) {
+        const newQuantity = parseFloat(stock.quantity) - parseFloat(sale.quantity);
+        await Stock.update(
+          { quantity: newQuantity },
+          { where: { id: stock.id }, transaction }
+        );
+      }
     }
 
     await transaction.commit();
 
-    // Fetch the created sales with their relations
     const saleIds = createdSales.map((sale) => sale.id);
     const completeSales = await Sale.findAll({
       where: { id: saleIds },
       include: [
-        {
-          model: Stock,
-          as: "stock",
-          include: [
-            {
-              model: Product,
-              as: "product",
-              attributes: ["id", "name", "unit"],
-            },
-          ],
-        },
-        {
-          model: User,
-          as: "user",
-          attributes: ["id", "email", "role"],
-        },
+        { model: Stock, as: "stock", include: [{ model: Product, as: "product", attributes: ["id", "name", "unit"] }] },
+        { model: User, as: "user", attributes: ["id", "email", "role"] },
       ],
     });
 
-    // Calculate summary
     const summary = {
       totalSales: finalSalesData.length,
-      totalItems: finalSalesData.reduce((sum, s) => sum + s.quantity, 0),
-      totalRevenue: finalSalesData.reduce((sum, s) => sum + s.totalPrice, 0),
+      totalItems: finalSalesData.reduce((sum, s) => sum + parseFloat(s.quantity), 0),
+      totalRevenue: finalSalesData.reduce((sum, s) => sum + parseFloat(s.totalPrice), 0),
     };
+
+    // Create debt for credit sales with customer name
+    let debt = null;
+    if (paymentMethod === 'credit' && customerName) {
+      const totalAmount = finalSalesData.reduce((sum, s) => sum + parseFloat(s.totalPrice), 0);
+      debt = await Debt.create({
+        saleId: createdSales[0].id,
+        customerName,
+        customerPhone: customerPhone || null,
+        totalAmount,
+        paidAmount: 0,
+        status: 'pending',
+      });
+    }
 
     return {
       count: createdSales.length,
       failed: missingIds.length,
       missingStockIds: missingIds,
-      summary: summary,
+      summary,
       sales: completeSales,
+      debt,
     };
   } catch (error) {
     console.error("error creating sales:", error);

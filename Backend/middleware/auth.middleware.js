@@ -8,7 +8,6 @@ const protect = (req, res, next) => {
     // First check if the token is in the Authorization header
     if(req.cookies && req.cookies.token){
         token = req.cookies.token;
-        console.log("Token found in cookies:", token);
     }
     // If not found in cookies, throw an error for missing token
     if(!token){

@@ -24,9 +24,13 @@ const fetchAllStocks = async () => {
   return all;
 };
 
-// Create bulk sales
-const createBulkSales = async (salesArray) => {
-  const response = await api.post('/sales', { sales: salesArray });
+const createBulkSales = async ({ sales, paymentMethod, customerName, customerPhone }) => {
+  const response = await api.post('/sales', {
+    sales,
+    paymentMethod,
+    customerName,
+    customerPhone,
+  });
   return response.data;
 };
 

@@ -358,7 +358,7 @@ const PurchaseManagement = () => {
           <h1 className="text-[17px] font-bold text-on-surface tracking-tight">Purchases</h1>
           <p className="text-[11px] text-secondary mt-0.5">{totalItems} total</p>
         </div>
-        {isAdmin && (
+        {user && (
           <button
             onClick={openAdd}
             className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 bg-primary text-on-primary text-[12px] font-semibold rounded-xl hover:brightness-110 transition-all shadow-sm"
@@ -434,7 +434,7 @@ const PurchaseManagement = () => {
         <div className="flex flex-col items-center justify-center py-14 gap-3 text-secondary bg-surface border border-outline-variant rounded-2xl">
           <ShoppingCart size={32} strokeWidth={1.2} className="opacity-25" />
           <p className="text-[12.5px]">{search ? `No results for "${search}"` : 'No purchases recorded'}</p>
-          {isAdmin && !search && (
+          {user && !search && (
             <button onClick={openAdd} className="text-[11.5px] text-primary font-semibold hover:underline">
               Record the first purchase →
             </button>
@@ -561,7 +561,7 @@ const PurchaseManagement = () => {
       )}
 
       {/* Mobile FAB */}
-      {isAdmin && (
+      { user && (
         <button
           onClick={openAdd}
           className="sm:hidden fixed bottom-6 right-5 z-40 w-12 h-12 rounded-full bg-primary text-on-primary shadow-lg shadow-primary/30 flex items-center justify-center hover:brightness-110 active:scale-95 transition-all"
@@ -571,7 +571,7 @@ const PurchaseManagement = () => {
       )}
 
       {/* ══════════ ADD PURCHASE SHEET ══════════ */}
-      {isAdmin && (
+      {user && (
         <Sheet open={addOpen} onClose={() => setAddOpen(false)} maxWidth="max-w-[800px]">
           <div className="px-5 pt-5 pb-0 flex items-start justify-between">
             <div>

@@ -14,11 +14,15 @@ const {
  */
 const createBulkSalesHandler = async (req, res) => {
     try {
-        const { sales } = req.body;
+        const { sales, paymentMethod, customerName, customerPhone } = req.body;
         const userId = req.user.id;
         
-        // ✅ Use the imported function directly
-        const result = await createBulkSales(sales, userId);
+        const result = await createBulkSales(sales, userId, {
+            paymentMethod: paymentMethod || 'cash',
+            customerName,
+            customerPhone,
+            isStockAdjusted: true,   // always true for normal sales; could be made configurable in future
+        });
         
         res.status(201).json({
             success: true,
@@ -27,7 +31,8 @@ const createBulkSalesHandler = async (req, res) => {
             failed: result.failed,
             missingStockIds: result.missingStockIds,
             summary: result.summary,
-            data: result.sales
+            data: result.sales,
+            debt: result.debt || null,
         });
         
     } catch (error) {
@@ -37,7 +42,6 @@ const createBulkSalesHandler = async (req, res) => {
         });
     }
 };
-
 /**
  * Create single sale
  * POST /api/sales

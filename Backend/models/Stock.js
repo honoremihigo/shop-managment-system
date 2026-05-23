@@ -10,11 +10,11 @@ const Stock = sequelize.define(
       primaryKey: true,
     },
     quantity: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL(10, 3),
       allowNull: false,
     },
     costPrice: {
-      type: DataTypes.DECIMAL(10,1),
+      type: DataTypes.DECIMAL(10, 1),
       allowNull: false
     },
     sellingPrice: {
