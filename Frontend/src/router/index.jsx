@@ -1,4 +1,4 @@
-import { createBrowserRouter} from "react-router-dom";
+import { createBrowserRouter, Navigate} from "react-router-dom";
 import { Login, Dashboard , NotFound, UserManagement, ProductManagment, StockManagment, SalesManagment, TodaySales, PurchaseManagment, DebtManagment } from "../pages/lazyLoading/Lazy";
 import SuspenceWrapper from "../components/suspenseWrapper/SuspenseWrapper";
 import ProtectedRoute from "../components/protector/ProtectUserRoute";
@@ -16,6 +16,7 @@ const routes = createBrowserRouter([
     path: "/",
     element: <ProtectedRoute> <MainLayout/> </ProtectedRoute>,
     children: [
+      { index: true, element: <Navigate to="/dashboard" replace /> },
       {
         path: "/dashboard",
         element: (
