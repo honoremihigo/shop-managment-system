@@ -408,49 +408,43 @@ const getLowStockProducts = async (threshold = 10, page = 1, limit = 20) => {
  * Get daily sales report (last 7/30 days)
  */
 const getDailySalesReport = async (days = 7) => {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    // 1. Validate days
+    const numDays = parseInt(days);
+    if (isNaN(numDays) || numDays <= 0) throw new Error('Invalid days parameter');
+
+    // 2. Set precise start/end for the last numDays (including today)
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - numDays + 1);
     startDate.setHours(0, 0, 0, 0);
-    
+
+    // 3. Fetch sales
     const sales = await Sale.findAll({
-        where: {
-            createdAt: { [Op.gte]: startDate }
-        },
-        include: [{
-            model: Stock,
-            as: 'stock',
-            include: [{
-                model: Product,
-                as: 'product'
-            }]
-        }]
+        where: { createdAt: { [Op.between]: [startDate, endDate] } },
+        include: [{ model: Stock, as: 'stock', include: [{ model: Product, as: 'product' }] }]
     });
-    
+
+    // 4. Build empty daily structure
     const dailyData = {};
-    
-    // Initialize last 'days' days
-    for (let i = 0; i < days; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
+    for (let i = 0; i < numDays; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
         const dateStr = date.toISOString().split('T')[0];
-        dailyData[dateStr] = {
-            date: dateStr,
-            sales: 0,
-            items: 0,
-            revenue: 0
-        };
+        dailyData[dateStr] = { date: dateStr, sales: 0, items: 0, revenue: 0 };
     }
-    
+
+    // 5. Aggregate sales – SAFE date conversion
     sales.forEach(sale => {
-        const dateStr = sale.createdAt.toISOString().split('T')[0];
+        const dateStr = new Date(sale.createdAt).toISOString().split('T')[0];
         if (dailyData[dateStr]) {
             dailyData[dateStr].sales++;
             dailyData[dateStr].items += sale.quantity;
             dailyData[dateStr].revenue += parseFloat(sale.totalPrice || 0);
         }
     });
-    
-    return Object.values(dailyData).reverse();
+
+    return Object.values(dailyData);
 };
 
 module.exports = {

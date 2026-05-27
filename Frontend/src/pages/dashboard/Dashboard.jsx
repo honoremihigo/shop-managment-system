@@ -28,7 +28,7 @@ import {
   getDailySalesReport,
   getTopProducts,
   getLowStockProducts,
-} from '../../services/report/reportService'; // adjust path
+} from '../../services/report/reportService';
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
@@ -37,9 +37,11 @@ const Dashboard = () => {
   const [lowStock, setLowStock] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [dailyError, setDailyError] = useState(''); // ★ new state for daily‑sales error
 
   useEffect(() => {
     const fetchData = async () => {
+      // ---- Dashboard stats ----
       try {
         const statsRes = await getDashboardStats();
         if (statsRes.success) setStats(statsRes.data);
@@ -48,21 +50,31 @@ const Dashboard = () => {
         setError('Failed to load dashboard stats');
       }
 
+      // ---- Daily sales (chart + yesterday) ----
       try {
         const dailyRes = await getDailySalesReport(7);
-        console.log('dailyRes', dailyRes);   // temporary log for debugging
-        if (dailyRes.success) {
-          // Ensure revenue is a number
-          const data = (dailyRes.data || []).map(d => ({
-            ...d,
-            revenue: Number(d.revenue),
-          }));
-          setDailySales(data);
+        console.log('dailyRes', dailyRes); // keep for debugging
+
+        // Handle two common response shapes:
+        //   1) { success: true, data: [...] }
+        //   2) The array directly (if axios interceptor unwraps data)
+        const data = dailyRes?.success ? dailyRes.data : dailyRes;
+
+        if (Array.isArray(data)) {
+          setDailySales(data.map(d => ({ ...d, revenue: Number(d.revenue) })));
+          setDailyError('');
+        } else {
+          throw new Error('Unexpected daily sales response format');
         }
       } catch (err) {
         console.error('Daily sales failed:', err);
+        setDailyError(
+          err?.response?.data?.message || err.message || 'Failed to load daily sales'
+        );
+        setDailySales([]);
       }
 
+      // ---- Top products ----
       try {
         const topRes = await getTopProducts(5);
         if (topRes.success) setTopProducts(topRes.data);
@@ -70,6 +82,7 @@ const Dashboard = () => {
         console.error('Top products failed:', err);
       }
 
+      // ---- Low stock ----
       try {
         const lowRes = await getLowStockProducts(10);
         if (lowRes.success) setLowStock(lowRes.data);
@@ -83,6 +96,7 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
+  // Derived values from dailySales
   const yesterdayRevenue = useMemo(() => {
     if (dailySales.length >= 2) return dailySales[dailySales.length - 2]?.revenue || 0;
     return 0;
@@ -98,6 +112,7 @@ const Dashboard = () => {
     return 0;
   }, [dailySales]);
 
+  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -106,6 +121,7 @@ const Dashboard = () => {
     );
   }
 
+  // Currency formatter
   const formatCurrency = (val) =>
     new Intl.NumberFormat('fr-RW', {
       style: 'currency',
@@ -113,6 +129,7 @@ const Dashboard = () => {
       minimumFractionDigits: 0,
     }).format(val);
 
+  // Stat card component
   const StatCard = ({ icon: Icon, label, value, accent, iconColor, valueColor }) => (
     <div className="flex items-center gap-2.5 bg-surface border border-outline-variant rounded-xl px-3 py-2.5 shadow-sm">
       <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${accent}`}>
@@ -129,6 +146,7 @@ const Dashboard = () => {
     </div>
   );
 
+  // Stats breakdown
   const overview = stats?.overview || {};
   const sales = stats?.sales || {};
   const purchases = stats?.purchases || {};
@@ -144,6 +162,7 @@ const Dashboard = () => {
         <p className="text-sm text-secondary mt-1">Welcome back! Here's what's happening today.</p>
       </div>
 
+      {/* General error banner */}
       {error && (
         <div className="px-4 py-2.5 bg-error-container text-on-error-container text-xs rounded-lg flex items-center justify-between">
           {error}
@@ -160,7 +179,6 @@ const Dashboard = () => {
           <StatCard icon={Coins} label="Stock Value" value={overview.stockValue !== undefined ? formatCurrency(overview.stockValue) : '—'} accent="bg-tertiary-container/60" iconColor="text-on-tertiary-container" />
           <StatCard icon={AlertTriangle} label="Low Stock" value={overview.lowStockCount ?? '—'} accent="bg-warning-container/60" iconColor="text-warning" valueColor={overview.lowStockCount > 0 ? 'text-warning' : 'text-on-surface'} />
           <StatCard icon={AlertCircle} label="Out of Stock" value={overview.outOfStockCount ?? '—'} accent="bg-error-container/60" iconColor="text-error" valueColor={overview.outOfStockCount > 0 ? 'text-error' : 'text-on-surface'} />
-          {/* Outstanding Debt */}
           <StatCard icon={CreditCard} label="Outstanding Debt" value={formatCurrency(debt.totalOutstanding || 0)} accent="bg-error-container/60" iconColor="text-error" valueColor="text-error" />
         </div>
       </section>
@@ -215,7 +233,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Yesterday */}
+          {/* Yesterday (now uses dailySales from the fixed fetch) */}
           <div className="bg-surface border border-outline-variant rounded-xl p-3.5 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-secondary uppercase tracking-wide">Yesterday</span>
@@ -351,6 +369,15 @@ const Dashboard = () => {
         {/* Daily Sales Line Chart */}
         <div className="bg-surface border border-outline-variant rounded-xl p-4 shadow-sm">
           <h2 className="text-lg font-semibold text-on-surface mb-3">Sales Last 7 Days</h2>
+
+          {/* ★ Show daily sales error if any */}
+          {dailyError && (
+            <div className="mb-3 px-3 py-2 bg-error-container text-on-error-container text-xs rounded-lg flex items-center gap-2">
+              <AlertCircle size={14} />
+              {dailyError}
+            </div>
+          )}
+
           <div className="h-64 lg:h-72">
             {dailySales.length > 0 ? (
               <ResponsiveContainer key={JSON.stringify(dailySales)} width="100%" height="100%">
@@ -377,8 +404,10 @@ const Dashboard = () => {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-secondary text-sm">
-                No data for the last 7 days
+              <div className="flex flex-col items-center justify-center h-full text-secondary text-sm gap-1">
+                {dailyError
+                  ? 'Could not load chart data. Check the error above.'
+                  : 'No sales data available for the last 7 days.'}
               </div>
             )}
           </div>
