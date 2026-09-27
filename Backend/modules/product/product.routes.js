@@ -5,7 +5,7 @@ const router = require("express").Router();
 
 
 
-router.get("/", protect, authorize("ADMIN", "USER"), getProducts)
+router.get("/",protect ,authorize("ADMIN", "USER") ,getProducts)
 router.get("/:id", protect, authorize("ADMIN", "USER"), getOneProduct)
 router.post("/", protect, authorize("ADMIN",'USER'), createProducts)
 router.put("/:id", protect, authorize("ADMIN", 'USER'), editProduct)
